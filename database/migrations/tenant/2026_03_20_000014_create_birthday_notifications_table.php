@@ -18,7 +18,7 @@ return new class extends Migration
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
 
-            $table->unique(['member_id', 'leader_id', 'notification_date', 'notification_type']);
+            $table->unique(['member_id', 'leader_id', 'notification_date', 'notification_type'], 'bday_notif_unique');
         });
     }
 
