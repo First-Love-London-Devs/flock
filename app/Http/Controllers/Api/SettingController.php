@@ -43,7 +43,7 @@ class SettingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update setting.',
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
