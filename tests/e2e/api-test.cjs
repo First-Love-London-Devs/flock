@@ -143,10 +143,10 @@ async function run() {
 
     const memberIds = [];
     const members = [
-        { first_name: 'John', last_name: 'Smith', email: 'john@test.com' },
-        { first_name: 'Jane', last_name: 'Doe', email: 'jane@test.com' },
-        { first_name: 'David', last_name: 'Wilson', email: 'david@test.com' },
-        { first_name: 'Sarah', last_name: 'Brown', email: 'sarah@test.com' },
+        { first_name: 'Jane', last_name: 'Doe', email: `jane${Date.now()}@test.com` },
+        { first_name: 'David', last_name: 'Wilson', email: `david${Date.now()}@test.com` },
+        { first_name: 'Sarah', last_name: 'Brown', email: `sarah${Date.now()}@test.com` },
+        { first_name: 'Grace', last_name: 'Lee', email: `grace${Date.now()}@test.com` },
     ];
 
     for (const member of members) {

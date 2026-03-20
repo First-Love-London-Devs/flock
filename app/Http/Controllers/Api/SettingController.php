@@ -29,7 +29,7 @@ class SettingController extends Controller
     public function update(Request $request, string $key): JsonResponse
     {
         $validated = $request->validate([
-            'value' => 'required',
+            'value' => 'present',
             'type' => 'nullable|string|in:string,boolean,integer,json',
         ]);
 
