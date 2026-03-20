@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\AttendanceSummaryResource\Pages;
+use App\Filament\Resources\AttendanceSummaryResource\RelationManagers;
 use App\Models\AttendanceSummary;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -68,7 +69,9 @@ class AttendanceSummaryResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\AttendancesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
