@@ -2,9 +2,9 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\AttendanceSummary;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\Schema;
 
 class AttendanceTrendsChart extends ChartWidget
 {
@@ -15,15 +15,24 @@ class AttendanceTrendsChart extends ChartWidget
         $weeks = collect();
         $labels = collect();
 
-        for ($i = 7; $i >= 0; $i--) {
-            $weekStart = Carbon::now()->subWeeks($i)->startOfWeek();
-            $weekEnd = $weekStart->copy()->endOfWeek();
+        // These tables only exist in tenant databases
+        if (!Schema::hasTable('attendance_summaries')) {
+            for ($i = 7; $i >= 0; $i--) {
+                $weekStart = Carbon::now()->subWeeks($i)->startOfWeek();
+                $weeks->push(0);
+                $labels->push($weekStart->format('M d'));
+            }
+        } else {
+            for ($i = 7; $i >= 0; $i--) {
+                $weekStart = Carbon::now()->subWeeks($i)->startOfWeek();
+                $weekEnd = $weekStart->copy()->endOfWeek();
 
-            $total = AttendanceSummary::whereBetween('date', [$weekStart, $weekEnd])
-                ->sum('total_attendance');
+                $total = \App\Models\AttendanceSummary::whereBetween('date', [$weekStart, $weekEnd])
+                    ->sum('total_attendance');
 
-            $weeks->push($total);
-            $labels->push($weekStart->format('M d'));
+                $weeks->push($total);
+                $labels->push($weekStart->format('M d'));
+            }
         }
 
         return [
