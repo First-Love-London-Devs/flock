@@ -69,5 +69,10 @@ Route::middleware([
         // Settings
         Route::get('/settings', [App\Http\Controllers\Api\SettingController::class, 'index']);
         Route::put('/settings/{key}', [App\Http\Controllers\Api\SettingController::class, 'update']);
+
+        // Push Notifications
+        Route::post('/push-token', [App\Http\Controllers\Api\PushNotificationController::class, 'storeToken']);
+        Route::delete('/push-token', [App\Http\Controllers\Api\PushNotificationController::class, 'removeToken']);
+        Route::post('/notifications/send', [App\Http\Controllers\Api\PushNotificationController::class, 'send']);
     });
 });
