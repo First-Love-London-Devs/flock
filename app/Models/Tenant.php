@@ -11,9 +11,6 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 {
     use HasDatabase, HasDomains;
 
-    public $incrementing = false;
-    protected $keyType = 'string';
-
     public static function getCustomColumns(): array
     {
         return [
@@ -31,6 +28,22 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         'is_active' => 'boolean',
         'trial_ends_at' => 'datetime',
     ];
+
+    // Override GeneratesIds trait — we set IDs manually as strings
+    public function getIncrementing()
+    {
+        return false;
+    }
+
+    public function getKeyType()
+    {
+        return 'string';
+    }
+
+    public function shouldGenerateId(): bool
+    {
+        return false;
+    }
 
     public function isActive(): bool
     {
