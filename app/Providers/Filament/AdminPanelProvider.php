@@ -56,6 +56,7 @@ class AdminPanelProvider extends PanelProvider
                 AttendanceTrendsChart::class,
             ])
             ->middleware([
+                InitializeTenancyByDomain::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -65,7 +66,6 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-                InitializeTenancyByDomain::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
