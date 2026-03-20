@@ -19,7 +19,7 @@ return new class extends Migration
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
 
-            $table->unique(['parent_group_id', 'date', 'notification_type']);
+            $table->unique(['parent_group_id', 'date', 'notification_type'], 'att_notif_group_date_type_unique');
         });
     }
 
