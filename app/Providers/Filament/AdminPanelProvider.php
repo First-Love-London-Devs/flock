@@ -56,7 +56,6 @@ class AdminPanelProvider extends PanelProvider
                 AttendanceTrendsChart::class,
             ])
             ->middleware([
-                InitializeTenancyByDomain::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
