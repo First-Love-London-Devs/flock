@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\GroupResource\RelationManagers;
 
+use App\Models\Member;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MembersRelationManager extends RelationManager
 {
@@ -14,6 +16,13 @@ class MembersRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                $group = $this->getOwnerRecord();
+                $allGroupIds = $group->descendants()->pluck('id')->push($group->id);
+
+                return Member::query()
+                    ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $allGroupIds));
+            })
             ->columns([
                 Tables\Columns\ImageColumn::make('picture')
                     ->label('')
