@@ -68,6 +68,7 @@ class LeaderResource extends Resource
                     ->relationship('leaderRoles.roleDefinition', 'name'),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -79,7 +80,9 @@ class LeaderResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            \App\Filament\Resources\LeaderResource\RelationManagers\LeaderRolesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
@@ -87,6 +90,7 @@ class LeaderResource extends Resource
         return [
             'index' => Pages\ListLeaders::route('/'),
             'create' => Pages\CreateLeader::route('/create'),
+            'view' => Pages\ViewLeader::route('/{record}'),
             'edit' => Pages\EditLeader::route('/{record}/edit'),
         ];
     }

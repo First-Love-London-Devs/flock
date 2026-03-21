@@ -199,10 +199,6 @@ class MemberResource extends Resource
                             ->required()
                             ->unique('leaders', 'username')
                             ->default(fn (Member $record) => strtolower($record->first_name . '.' . $record->last_name)),
-                        Forms\Components\TextInput::make('password')
-                            ->password()
-                            ->required()
-                            ->minLength(6),
                         Forms\Components\Select::make('role_definition_id')
                             ->label('Role')
                             ->options(RoleDefinition::active()->pluck('name', 'id'))
@@ -216,10 +212,12 @@ class MemberResource extends Resource
                             ->visible(fn (Forms\Get $get) => filled($get('role_definition_id'))),
                     ])
                     ->action(function (Member $record, array $data) {
+                        $defaultPassword = Setting::get('default_leader_password', 'Flock2026!');
+
                         $leader = Leader::create([
                             'member_id' => $record->id,
                             'username' => $data['username'],
-                            'password' => $data['password'],
+                            'password' => $defaultPassword,
                             'is_active' => true,
                         ]);
 
