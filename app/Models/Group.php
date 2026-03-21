@@ -106,13 +106,21 @@ class Group extends Model
             return $this->cachedDescendantIds;
         }
 
-        $this->cachedDescendantIds = DB::table(DB::raw(
-            "(WITH RECURSIVE cte AS (
-                SELECT id FROM groups WHERE parent_id = {$this->id} AND deleted_at IS NULL
-                UNION ALL
-                SELECT g.id FROM groups g INNER JOIN cte ON g.parent_id = cte.id WHERE g.deleted_at IS NULL
-            ) SELECT id FROM cte) AS descendants"
-        ))->pluck('id');
+        $ids = collect();
+        $parentIds = collect([$this->id]);
+
+        $maxDepth = 20;
+        while ($parentIds->isNotEmpty() && $maxDepth-- > 0) {
+            $childIds = DB::table('groups')
+                ->whereIn('parent_id', $parentIds)
+                ->whereNull('deleted_at')
+                ->pluck('id');
+
+            $ids = $ids->merge($childIds);
+            $parentIds = $childIds;
+        }
+
+        $this->cachedDescendantIds = $ids;
 
         return $this->cachedDescendantIds;
     }
