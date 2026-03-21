@@ -18,13 +18,19 @@ class Member extends Model
     protected $fillable = [
         'first_name', 'last_name', 'email', 'phone_number', 'date_of_birth',
         'gender', 'address', 'picture', 'marital_status', 'occupation',
-        'member_since', 'is_active', 'notes',
+        'nbs_status', 'holy_ghost_baptism', 'water_baptism',
+        'member_type', 'profile_completed',
+        'member_since', 'is_active', 'notes', 'additional_info',
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
         'member_since' => 'date',
         'is_active' => 'boolean',
+        'holy_ghost_baptism' => 'boolean',
+        'water_baptism' => 'boolean',
+        'profile_completed' => 'boolean',
+        'additional_info' => 'array',
     ];
 
     public function getActivitylogOptions(): LogOptions

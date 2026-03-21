@@ -23,6 +23,12 @@ class DefaultSettingsSeeder extends Seeder
             ['key' => 'modules.equipment', 'value' => 'false', 'type' => 'boolean', 'description' => 'Enable equipment booking module'],
             ['key' => 'modules.follow_up', 'value' => 'true', 'type' => 'boolean', 'description' => 'Enable first-timer follow-up module'],
             ['key' => 'modules.ai_assistant', 'value' => 'false', 'type' => 'boolean', 'description' => 'Enable AI assistant module'],
+            ['key' => 'member_additional_fields', 'value' => json_encode([
+                ['key' => 'gender', 'label' => 'Gender', 'type' => 'select', 'options' => ['Male', 'Female', 'Other']],
+                ['key' => 'benmp_partner', 'label' => 'BENMP Partner', 'type' => 'toggle'],
+                ['key' => 'born_again', 'label' => 'Are they Born Again?', 'type' => 'toggle'],
+                ['key' => 'schools_completed', 'label' => 'Schools Completed (Strong Christian & Lay Schools)', 'type' => 'text'],
+            ]), 'type' => 'json', 'description' => 'Configurable additional fields for member profiles'],
         ];
 
         foreach ($settings as $setting) {

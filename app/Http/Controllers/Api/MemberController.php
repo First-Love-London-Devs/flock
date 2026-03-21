@@ -59,8 +59,14 @@ class MemberController extends Controller
             'picture' => 'nullable|string',
             'marital_status' => 'nullable|string',
             'occupation' => 'nullable|string|max:255',
+            'nbs_status' => 'nullable|string|in:not_started,in_progress,completed',
+            'holy_ghost_baptism' => 'boolean',
+            'water_baptism' => 'boolean',
+            'member_type' => 'nullable|string|in:member,visitor,first_timer,new_convert',
+            'profile_completed' => 'boolean',
             'member_since' => 'nullable|date',
             'notes' => 'nullable|string',
+            'additional_info' => 'nullable|array',
         ]);
 
         try {
@@ -116,9 +122,15 @@ class MemberController extends Controller
                 'picture' => 'nullable|string',
                 'marital_status' => 'nullable|string',
                 'occupation' => 'nullable|string|max:255',
+                'nbs_status' => 'nullable|string|in:not_started,in_progress,completed',
+                'holy_ghost_baptism' => 'boolean',
+                'water_baptism' => 'boolean',
+                'member_type' => 'nullable|string|in:member,visitor,first_timer,new_convert',
+                'profile_completed' => 'boolean',
                 'member_since' => 'nullable|date',
                 'is_active' => 'boolean',
                 'notes' => 'nullable|string',
+                'additional_info' => 'nullable|array',
             ]);
 
             $member->update($validated);
