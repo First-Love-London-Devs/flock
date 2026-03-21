@@ -1,6 +1,6 @@
 const https = require('http');
 
-const BASE_URL = process.env.FLOCK_URL || 'http://gochurch.poimen.co.uk';
+const BASE_URL = process.env.FLOCK_URL || 'http://gochurch.church-stack.com';
 let passed = 0;
 let failed = 0;
 let apiToken = null;

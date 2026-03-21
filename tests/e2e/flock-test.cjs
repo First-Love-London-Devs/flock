@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 
-const BASE_URL = process.env.FLOCK_URL || 'http://gochurch.poimen.co.uk';
+const BASE_URL = process.env.FLOCK_URL || 'http://gochurch.church-stack.com';
 const ADMIN_EMAIL = process.env.FLOCK_EMAIL || 'admin@gochurch.com';
 const ADMIN_PASSWORD = process.env.FLOCK_PASSWORD || 'flock2026';
 

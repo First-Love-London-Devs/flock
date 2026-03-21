@@ -18,7 +18,7 @@ return [
      */
     'central_domains' => [
         env('CENTRAL_DOMAIN', 'admin.localhost'),
-        'flockadmin.poimen.co.uk',
+        'flockadmin.church-stack.com',
         '127.0.0.1',
         'localhost',
     ],

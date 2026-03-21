@@ -36,7 +36,7 @@ class CentralPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->font('Inter')
-            ->domains(['flockadmin.poimen.co.uk'])
+            ->domains(['flockadmin.church-stack.com'])
             ->discoverResources(in: app_path('Filament/Central/Resources'), for: 'App\\Filament\\Central\\Resources')
             ->discoverPages(in: app_path('Filament/Central/Pages'), for: 'App\\Filament\\Central\\Pages')
             ->pages([

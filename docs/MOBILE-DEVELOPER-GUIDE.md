@@ -5,8 +5,8 @@
 Flock is a **multi-tenant church management system** where each church gets its own subdomain, database, and admin panel. The mobile app connects to a church's API via their unique subdomain.
 
 **Example:**
-- `gochurch.poimen.co.uk` — Go Church's instance
-- `grace.poimen.co.uk` — Grace Community's instance
+- `gochurch.church-stack.com` — Go Church's instance
+- `grace.church-stack.com` — Grace Community's instance
 - Each church has completely isolated data
 
 ---
@@ -16,7 +16,7 @@ Flock is a **multi-tenant church management system** where each church gets its 
 ```
 Mobile App (React Native / Flutter)
     │
-    ├── Login: POST https://{church}.poimen.co.uk/api/v1/auth/login
+    ├── Login: POST https://{church}.church-stack.com/api/v1/auth/login
     ├── Get token → store securely
     └── All requests: Authorization: Bearer {token}
          │
@@ -43,7 +43,7 @@ Mobile App (React Native / Flutter)
 
 Each church has its own subdomain:
 ```
-https://{church-subdomain}.poimen.co.uk/api/v1
+https://{church-subdomain}.church-stack.com/api/v1
 ```
 
 The app should let users enter their church subdomain on first launch (e.g., "gochurch"), then construct the base URL.
@@ -113,7 +113,7 @@ Zone: "North Zone"                    (GroupType: Zone, level 0)
 
 ## API Reference
 
-**Base URL:** `https://{church}.poimen.co.uk/api/v1`
+**Base URL:** `https://{church}.church-stack.com/api/v1`
 
 ### Response Format
 
@@ -763,16 +763,16 @@ Based on the API, here's a recommended screen structure:
 
 For development, point the app at:
 ```
-http://gochurch.poimen.co.uk/api/v1
+http://gochurch.church-stack.com/api/v1
 ```
 
 The API is currently HTTP (SSL pending). When SSL is configured:
 ```
-https://gochurch.poimen.co.uk/api/v1
+https://gochurch.church-stack.com/api/v1
 ```
 
 ---
 
 ## Questions?
 
-Contact the backend team or check the Filament admin panel at `{church}.poimen.co.uk/admin` to see the data structures in action.
+Contact the backend team or check the Filament admin panel at `{church}.church-stack.com/admin` to see the data structures in action.

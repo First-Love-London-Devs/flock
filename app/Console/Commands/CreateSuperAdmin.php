@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class CreateSuperAdmin extends Command
 {
     protected $signature = 'admin:create
-        {--email=admin@flock.poimen.co.uk : Admin email}
+        {--email=admin@flock.church-stack.com : Admin email}
         {--name=Super Admin : Admin name}
         {--password=Flock2026! : Admin password}';
 
