@@ -117,4 +117,11 @@ class Group extends Model
     {
         return $this->ancestors()->count();
     }
+
+    public function getTotalMembersCountAttribute(): int
+    {
+        $descendantIds = $this->descendants()->pluck('id')->push($this->id);
+
+        return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $descendantIds))->count();
+    }
 }

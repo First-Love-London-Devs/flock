@@ -65,8 +65,9 @@ class GroupResource extends Resource
                 Tables\Columns\TextColumn::make('parent.name'),
                 Tables\Columns\TextColumn::make('leader.member.full_name')
                     ->label('Leader'),
-                Tables\Columns\TextColumn::make('members_count')
-                    ->counts('members'),
+                Tables\Columns\TextColumn::make('total_members_count')
+                    ->label('Members')
+                    ->getStateUsing(fn ($record) => $record->total_members_count),
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
             ])
