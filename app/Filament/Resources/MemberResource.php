@@ -84,7 +84,11 @@ class MemberResource extends Resource
                             ]),
                         Forms\Components\Select::make('groups')
                             ->label('Bacenta')
-                            ->relationship('groups', 'name')
+                            ->relationship(
+                                'groups',
+                                'name',
+                                fn ($query) => $query->whereHas('groupType', fn ($q) => $q->where('tracks_attendance', true)),
+                            )
                             ->multiple()
                             ->searchable()
                             ->preload(),
