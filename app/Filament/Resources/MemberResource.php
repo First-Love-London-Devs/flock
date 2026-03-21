@@ -65,23 +65,14 @@ class MemberResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('nbs_status')
                             ->label('NBS Status')
-                            ->options([
-                                'not_started' => 'Not Started',
-                                'in_progress' => 'In Progress',
-                                'completed' => 'Completed',
-                            ]),
+                            ->options(Member::NBS_STATUSES),
                         Forms\Components\Toggle::make('holy_ghost_baptism')
                             ->label('Holy Ghost Baptism'),
                         Forms\Components\Toggle::make('water_baptism')
                             ->label('Water Baptism'),
                         Forms\Components\Select::make('member_type')
                             ->label('Type of Member')
-                            ->options([
-                                'member' => 'Member',
-                                'visitor' => 'Visitor',
-                                'first_timer' => 'First Timer',
-                                'new_convert' => 'New Convert',
-                            ]),
+                            ->options(Member::MEMBER_TYPES),
                         Forms\Components\Select::make('groups')
                             ->label('Bacenta')
                             ->relationship(
@@ -153,7 +144,7 @@ class MemberResource extends Resource
                 Tables\Columns\ImageColumn::make('picture')
                     ->label('')
                     ->circular()
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->full_name) . '&background=random'),
+                    ->defaultImageUrl(fn ($record) => $record->avatar_url),
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable()
                     ->sortable(),
@@ -177,12 +168,7 @@ class MemberResource extends Resource
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active'),
                 Tables\Filters\SelectFilter::make('member_type')
-                    ->options([
-                        'member' => 'Member',
-                        'visitor' => 'Visitor',
-                        'first_timer' => 'First Timer',
-                        'new_convert' => 'New Convert',
-                    ]),
+                    ->options(Member::MEMBER_TYPES),
                 Tables\Filters\TernaryFilter::make('profile_completed'),
             ])
             ->actions([

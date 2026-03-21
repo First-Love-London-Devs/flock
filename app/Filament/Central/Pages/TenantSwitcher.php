@@ -73,11 +73,6 @@ class TenantSwitcher extends Page implements HasForms
 
     public static function getActiveTenantName(): ?string
     {
-        $tenantId = session('selected_tenant_id');
-        if (!$tenantId) {
-            return null;
-        }
-
-        return Tenant::find($tenantId)?->church_name;
+        return \App\Http\Middleware\SetSelectedTenant::getSelectedTenant()?->church_name;
     }
 }

@@ -30,8 +30,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName(fn () => \App\Models\Setting::get('church_name', 'Flock'))
-            ->brandLogo(fn () => view('filament.brand'))
-            ->darkModeBrandLogo(fn () => view('filament.brand-dark'))
+            ->brandLogo(fn () => view('filament.brand', ['dark' => false]))
+            ->darkModeBrandLogo(fn () => view('filament.brand', ['dark' => true]))
             ->darkMode()
             ->sidebarCollapsibleOnDesktop()
             ->colors(fn () => [

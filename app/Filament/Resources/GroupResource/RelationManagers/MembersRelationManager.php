@@ -18,16 +18,15 @@ class MembersRelationManager extends RelationManager
         return $table
             ->modifyQueryUsing(function (Builder $query) {
                 $group = $this->getOwnerRecord();
-                $allGroupIds = $group->descendants()->pluck('id')->push($group->id);
 
                 return Member::query()
-                    ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $allGroupIds));
+                    ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $group->allGroupIds()));
             })
             ->columns([
                 Tables\Columns\ImageColumn::make('picture')
                     ->label('')
                     ->circular()
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->full_name) . '&background=random'),
+                    ->defaultImageUrl(fn ($record) => $record->avatar_url),
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('last_name')

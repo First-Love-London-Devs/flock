@@ -15,6 +15,25 @@ class Member extends Model
 {
     use HasFactory, SoftDeletes, LogsActivity;
 
+    public const MEMBER_TYPES = [
+        'member' => 'Member',
+        'visitor' => 'Visitor',
+        'first_timer' => 'First Timer',
+        'new_convert' => 'New Convert',
+    ];
+
+    public const NBS_STATUSES = [
+        'not_started' => 'Not Started',
+        'in_progress' => 'In Progress',
+        'completed' => 'Completed',
+    ];
+
+    public const GENDERS = [
+        'male' => 'Male',
+        'female' => 'Female',
+        'other' => 'Other',
+    ];
+
     protected $fillable = [
         'first_name', 'last_name', 'email', 'phone_number', 'date_of_birth',
         'gender', 'address', 'picture', 'marital_status', 'occupation',
@@ -58,6 +77,15 @@ class Member extends Model
     public function getFullNameAttribute(): string
     {
         return $this->first_name . ' ' . $this->last_name;
+    }
+
+    public function getAvatarUrlAttribute(): string
+    {
+        if ($this->picture) {
+            return $this->picture;
+        }
+
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->full_name) . '&background=random';
     }
 
     public function scopeActive($query)

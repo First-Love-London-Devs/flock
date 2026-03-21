@@ -8,13 +8,17 @@ class Setting extends Model
 {
     protected $fillable = ['key', 'value', 'type', 'description'];
 
+    protected static ?array $cache = null;
+
     public static function get(string $key, $default = null)
     {
-        $setting = static::where('key', $key)->first();
+        $settings = static::loadAll();
 
-        if (!$setting) {
+        if (!isset($settings[$key])) {
             return $default;
         }
+
+        $setting = $settings[$key];
 
         return match ($setting->type) {
             'boolean' => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
@@ -32,5 +36,25 @@ class Setting extends Model
             ['key' => $key],
             ['value' => $storeValue, 'type' => $type]
         );
+
+        static::$cache = null;
+    }
+
+    public static function loadAll(): array
+    {
+        if (static::$cache === null) {
+            try {
+                static::$cache = static::all()->keyBy('key')->all();
+            } catch (\Throwable $e) {
+                return [];
+            }
+        }
+
+        return static::$cache;
+    }
+
+    public static function clearCache(): void
+    {
+        static::$cache = null;
     }
 }

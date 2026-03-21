@@ -10,7 +10,7 @@ class CreateSuperAdmin extends Command
     protected $signature = 'admin:create
         {--email=admin@flock.church-stack.com : Admin email}
         {--name=Super Admin : Admin name}
-        {--password=Flock2026! : Admin password}';
+        {--password= : Admin password (required)}';
 
     protected $description = 'Create a super admin user for the central admin panel';
 
@@ -19,6 +19,11 @@ class CreateSuperAdmin extends Command
         $email = $this->option('email');
         $name = $this->option('name');
         $password = $this->option('password');
+
+        if (!$password) {
+            $this->error('The --password option is required.');
+            return self::FAILURE;
+        }
 
         $user = User::updateOrCreate(
             ['email' => $email],

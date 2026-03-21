@@ -26,8 +26,8 @@ class CentralPanelProvider extends PanelProvider
             ->id('central')
             ->path('central')
             ->login()
-            ->brandName(fn () => session('selected_tenant_id')
-                ? 'Flock Admin — ' . (\App\Models\Tenant::find(session('selected_tenant_id'))?->church_name ?? '')
+            ->brandName(fn () => ($tenant = \App\Http\Middleware\SetSelectedTenant::getSelectedTenant())
+                ? 'Flock Admin — ' . $tenant->church_name
                 : 'Flock Admin'
             )
             ->darkMode()

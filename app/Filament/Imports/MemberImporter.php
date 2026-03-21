@@ -84,6 +84,8 @@ class MemberImporter extends Importer
         return new Member();
     }
 
+    protected static array $groupCache = [];
+
     public function afterSave(): void
     {
         $groupName = trim($this->originalData['group'] ?? '');
@@ -92,23 +94,17 @@ class MemberImporter extends Importer
             return;
         }
 
-        $group = Group::where('name', $groupName)->first();
+        $group = static::$groupCache[$groupName] ??= Group::firstOrCreate(
+            ['name' => $groupName],
+            ['is_active' => true],
+        );
 
-        if (!$group) {
-            // Auto-create the group if it doesn't exist
-            $group = Group::create([
-                'name' => $groupName,
-                'is_active' => true,
-            ]);
-        }
-
-        // Attach member to group if not already attached
-        if (!$this->record->groups()->where('groups.id', $group->id)->exists()) {
-            $this->record->groups()->attach($group->id, [
+        $this->record->groups()->syncWithoutDetaching([
+            $group->id => [
                 'joined_at' => $this->record->member_since ?? now()->toDateString(),
                 'is_primary' => true,
-            ]);
-        }
+            ],
+        ]);
     }
 
     public static function getCompletedNotificationBody(Import $import): string

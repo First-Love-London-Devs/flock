@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -25,6 +26,8 @@ class Group extends Model
         'is_active' => 'boolean',
         'meeting_day' => 'integer',
     ];
+
+    private ?Collection $cachedDescendantIds = null;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -87,8 +90,9 @@ class Group extends Model
     {
         $ancestors = collect();
         $current = $this->parent;
+        $maxDepth = 20;
 
-        while ($current) {
+        while ($current && $maxDepth-- > 0) {
             $ancestors->push($current);
             $current = $current->parent;
         }
@@ -96,16 +100,31 @@ class Group extends Model
         return $ancestors;
     }
 
-    public function descendants(): Collection
+    public function descendantIds(): Collection
     {
-        $descendants = collect();
-
-        foreach ($this->children()->with('children')->get() as $child) {
-            $descendants->push($child);
-            $descendants = $descendants->merge($child->descendants());
+        if ($this->cachedDescendantIds !== null) {
+            return $this->cachedDescendantIds;
         }
 
-        return $descendants;
+        $this->cachedDescendantIds = DB::table(DB::raw(
+            "(WITH RECURSIVE cte AS (
+                SELECT id FROM groups WHERE parent_id = {$this->id} AND deleted_at IS NULL
+                UNION ALL
+                SELECT g.id FROM groups g INNER JOIN cte ON g.parent_id = cte.id WHERE g.deleted_at IS NULL
+            ) SELECT id FROM cte) AS descendants"
+        ))->pluck('id');
+
+        return $this->cachedDescendantIds;
+    }
+
+    public function descendants(): Collection
+    {
+        return static::whereIn('id', $this->descendantIds())->get();
+    }
+
+    public function allGroupIds(): Collection
+    {
+        return $this->descendantIds()->push($this->id);
     }
 
     public function isDescendantOf(int $groupId): bool
@@ -120,8 +139,6 @@ class Group extends Model
 
     public function getTotalMembersCountAttribute(): int
     {
-        $descendantIds = $this->descendants()->pluck('id')->push($this->id);
-
-        return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $descendantIds))->count();
+        return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $this->allGroupIds()))->count();
     }
 }

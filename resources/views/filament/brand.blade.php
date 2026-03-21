@@ -1,16 +1,18 @@
 @php
     try {
+        $logoDark = \App\Models\Setting::get('church_logo_dark');
         $logo = \App\Models\Setting::get('church_logo');
         $name = \App\Models\Setting::get('church_name', 'Flock');
+        $displayLogo = ($dark ?? false) ? ($logoDark ?: $logo) : $logo;
     } catch (\Throwable $e) {
-        $logo = null;
+        $displayLogo = null;
         $name = 'Flock';
     }
 @endphp
 
 <div class="flex items-center gap-2">
-    @if($logo)
-        <img src="{{ $logo }}" alt="{{ $name }}" class="h-8" />
+    @if($displayLogo)
+        <img src="{{ $displayLogo }}" alt="{{ $name }}" class="h-8" />
     @endif
     <span class="font-bold text-lg">{{ $name }}</span>
 </div>
