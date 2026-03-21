@@ -12,6 +12,9 @@ class MemberImporter extends Importer
 {
     protected static ?string $model = Member::class;
 
+    protected static array $groupCache = [];
+    protected static array $unmatchedGroups = [];
+
     public static function getColumns(): array
     {
         return [
@@ -33,7 +36,7 @@ class MemberImporter extends Importer
                 ->rules(['nullable', 'date'])
                 ->example('1990-01-15'),
             ImportColumn::make('gender')
-                ->rules(['nullable', 'string', 'in:male,female,other'])
+                ->rules(['nullable', 'string', 'in:' . implode(',', array_keys(Member::GENDERS))])
                 ->example('male'),
             ImportColumn::make('address')
                 ->rules(['nullable', 'string'])
@@ -47,7 +50,7 @@ class MemberImporter extends Importer
                 ->example('single'),
             ImportColumn::make('nbs_status')
                 ->label('NBS Status')
-                ->rules(['nullable', 'string', 'in:not_started,in_progress,completed'])
+                ->rules(['nullable', 'string', 'in:' . implode(',', array_keys(Member::NBS_STATUSES))])
                 ->example('completed'),
             ImportColumn::make('holy_ghost_baptism')
                 ->label('Holy Ghost Baptism')
@@ -61,7 +64,7 @@ class MemberImporter extends Importer
                 ->example('yes'),
             ImportColumn::make('member_type')
                 ->label('Type of Member')
-                ->rules(['nullable', 'string', 'in:member,visitor,first_timer,new_convert'])
+                ->rules(['nullable', 'string', 'in:' . implode(',', array_keys(Member::MEMBER_TYPES))])
                 ->example('member'),
             ImportColumn::make('member_since')
                 ->rules(['nullable', 'date'])
@@ -71,7 +74,7 @@ class MemberImporter extends Importer
             ImportColumn::make('group')
                 ->label('Group (Bacenta)')
                 ->fillRecordUsing(fn () => null)
-                ->example('Antwerp Central'),
+                ->example('Predestination 1'),
         ];
     }
 
@@ -84,8 +87,6 @@ class MemberImporter extends Importer
         return new Member();
     }
 
-    protected static array $groupCache = [];
-
     public function afterSave(): void
     {
         $groupName = trim($this->originalData['group'] ?? '');
@@ -94,10 +95,21 @@ class MemberImporter extends Importer
             return;
         }
 
-        $group = static::$groupCache[$groupName] ??= Group::firstOrCreate(
-            ['name' => $groupName],
-            ['is_active' => true],
-        );
+        if (!isset(static::$groupCache[$groupName])) {
+            static::$groupCache[$groupName] = Group::where('name', $groupName)->first();
+        }
+
+        $group = static::$groupCache[$groupName];
+
+        if (!$group) {
+            static::$unmatchedGroups[$groupName] = true;
+
+            $this->record->update([
+                'notes' => trim(($this->record->notes ?? '') . "\n[Import] Group not found: {$groupName}"),
+            ]);
+
+            return;
+        }
 
         $this->record->groups()->syncWithoutDetaching([
             $group->id => [
@@ -109,10 +121,15 @@ class MemberImporter extends Importer
 
     public static function getCompletedNotificationBody(Import $import): string
     {
-        $body = 'Your member import has completed. ' . number_format($import->successful_rows) . ' ' . str('row')->plural($import->successful_rows) . ' imported.';
+        $body = number_format($import->successful_rows) . ' ' . str('row')->plural($import->successful_rows) . ' imported.';
 
         if ($failedRowsCount = $import->getFailedRowsCount()) {
-            $body .= ' ' . number_format($failedRowsCount) . ' ' . str('row')->plural($failedRowsCount) . ' failed to import.';
+            $body .= ' ' . number_format($failedRowsCount) . ' failed.';
+        }
+
+        if (!empty(static::$unmatchedGroups)) {
+            $names = implode(', ', array_keys(static::$unmatchedGroups));
+            $body .= " Unmatched groups: {$names}";
         }
 
         return $body;
