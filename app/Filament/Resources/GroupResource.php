@@ -77,6 +77,7 @@ class GroupResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_active'),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -88,7 +89,10 @@ class GroupResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            \App\Filament\Resources\GroupResource\RelationManagers\ChildrenRelationManager::class,
+            \App\Filament\Resources\GroupResource\RelationManagers\MembersRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
@@ -96,6 +100,7 @@ class GroupResource extends Resource
         return [
             'index' => Pages\ListGroups::route('/'),
             'create' => Pages\CreateGroup::route('/create'),
+            'view' => Pages\ViewGroup::route('/{record}'),
             'edit' => Pages\EditGroup::route('/{record}/edit'),
         ];
     }
