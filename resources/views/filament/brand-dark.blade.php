@@ -1,8 +1,13 @@
 @php
-    $logoDark = \App\Models\Setting::get('church_logo_dark');
-    $logo = \App\Models\Setting::get('church_logo');
-    $name = \App\Models\Setting::get('church_name', 'Flock');
-    $displayLogo = $logoDark ?: $logo;
+    try {
+        $logoDark = \App\Models\Setting::get('church_logo_dark');
+        $logo = \App\Models\Setting::get('church_logo');
+        $name = \App\Models\Setting::get('church_name', 'Flock');
+        $displayLogo = $logoDark ?: $logo;
+    } catch (\Throwable $e) {
+        $displayLogo = null;
+        $name = 'Flock';
+    }
 @endphp
 
 <div class="flex items-center gap-2">

@@ -1,6 +1,11 @@
 @php
-    $logo = \App\Models\Setting::get('church_logo');
-    $name = \App\Models\Setting::get('church_name', 'Flock');
+    try {
+        $logo = \App\Models\Setting::get('church_logo');
+        $name = \App\Models\Setting::get('church_name', 'Flock');
+    } catch (\Throwable $e) {
+        $logo = null;
+        $name = 'Flock';
+    }
 @endphp
 
 <div class="flex items-center gap-2">
