@@ -16,6 +16,10 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
+        if ($panel->getId() === 'central') {
+            return $this->is_super_admin ?? false;
+        }
+
         return true;
     }
 
@@ -28,6 +32,7 @@ class User extends Authenticatable implements FilamentUser
         'name',
         'email',
         'password',
+        'is_super_admin',
     ];
 
     /**
@@ -48,5 +53,6 @@ class User extends Authenticatable implements FilamentUser
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_super_admin' => 'boolean',
     ];
 }

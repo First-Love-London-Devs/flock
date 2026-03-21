@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\SetSelectedTenant;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -17,28 +18,31 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class AdminPanelProvider extends PanelProvider
+class CentralPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->default()
-            ->id('admin')
-            ->path('admin')
+            ->id('central')
+            ->path('central')
             ->login()
-            ->brandName(fn () => \App\Models\Setting::get('church_name', 'Flock'))
-            ->brandLogo(fn () => \App\Models\Setting::get('church_logo'))
-            ->darkModeBrandLogo(fn () => \App\Models\Setting::get('church_logo_dark'))
-            ->brandLogoHeight('2rem')
+            ->brandName(fn () => session('selected_tenant_id')
+                ? 'Flock Admin — ' . (\App\Models\Tenant::find(session('selected_tenant_id'))?->church_name ?? '')
+                : 'Flock Admin'
+            )
             ->darkMode()
             ->sidebarCollapsibleOnDesktop()
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => Color::Amber,
             ])
             ->font('Inter')
+            ->domains(['flockadmin.poimen.co.uk'])
+            ->discoverResources(in: app_path('Filament/Central/Resources'), for: 'App\\Filament\\Central\\Resources')
+            ->discoverPages(in: app_path('Filament/Central/Pages'), for: 'App\\Filament\\Central\\Pages')
             ->pages([
                 Pages\Dashboard::class,
             ])
+            ->discoverWidgets(in: app_path('Filament/Central/Widgets'), for: 'App\\Filament\\Central\\Widgets')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -49,6 +53,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SetSelectedTenant::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
