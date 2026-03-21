@@ -3,10 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MemberResource\Pages;
+use App\Models\Leader;
+use App\Models\LeaderRole;
 use App\Models\Member;
+use App\Models\RoleDefinition;
 use App\Models\Setting;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -158,6 +162,12 @@ class MemberResource extends Resource
                 Tables\Columns\IconColumn::make('profile_completed')
                     ->label('Profile')
                     ->boolean(),
+                Tables\Columns\IconColumn::make('leader')
+                    ->label('Leader')
+                    ->getStateUsing(fn (Member $record) => $record->leader !== null)
+                    ->boolean()
+                    ->trueIcon('heroicon-o-shield-check')
+                    ->falseIcon('heroicon-o-minus'),
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -170,9 +180,65 @@ class MemberResource extends Resource
                 Tables\Filters\SelectFilter::make('member_type')
                     ->options(Member::MEMBER_TYPES),
                 Tables\Filters\TernaryFilter::make('profile_completed'),
+                Tables\Filters\TernaryFilter::make('is_leader')
+                    ->label('Is Leader')
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('leader'),
+                        false: fn ($query) => $query->whereDoesntHave('leader'),
+                    ),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('makeLeader')
+                    ->label('Make Leader')
+                    ->icon('heroicon-o-shield-check')
+                    ->color('success')
+                    ->visible(fn (Member $record) => !$record->leader)
+                    ->form([
+                        Forms\Components\TextInput::make('username')
+                            ->required()
+                            ->unique('leaders', 'username')
+                            ->default(fn (Member $record) => strtolower($record->first_name . '.' . $record->last_name)),
+                        Forms\Components\TextInput::make('password')
+                            ->password()
+                            ->required()
+                            ->minLength(6),
+                        Forms\Components\Select::make('role_definition_id')
+                            ->label('Role')
+                            ->options(RoleDefinition::active()->pluck('name', 'id'))
+                            ->placeholder('No role'),
+                        Forms\Components\Select::make('group_id')
+                            ->label('Assign to Group')
+                            ->relationship('groups', 'name')
+                            ->options(fn () => \App\Models\Group::pluck('name', 'id'))
+                            ->searchable()
+                            ->placeholder('No group')
+                            ->visible(fn (Forms\Get $get) => filled($get('role_definition_id'))),
+                    ])
+                    ->action(function (Member $record, array $data) {
+                        $leader = Leader::create([
+                            'member_id' => $record->id,
+                            'username' => $data['username'],
+                            'password' => $data['password'],
+                            'is_active' => true,
+                        ]);
+
+                        if (!empty($data['role_definition_id'])) {
+                            LeaderRole::create([
+                                'leader_id' => $leader->id,
+                                'role_definition_id' => $data['role_definition_id'],
+                                'group_id' => $data['group_id'] ?? null,
+                                'assigned_at' => now(),
+                                'is_active' => true,
+                            ]);
+                        }
+
+                        Notification::make()
+                            ->title("{$record->full_name} is now a leader")
+                            ->body("Username: {$data['username']}")
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
