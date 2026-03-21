@@ -48,13 +48,24 @@ class LeaderResource extends Resource
                     ->searchable(['members.first_name', 'members.last_name']),
                 Tables\Columns\TextColumn::make('username')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('leaderRoles.roleDefinition.name')
+                    ->label('Roles')
+                    ->badge()
+                    ->separator(','),
+                Tables\Columns\TextColumn::make('leaderRoles.group.name')
+                    ->label('Group')
+                    ->separator(','),
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime(),
+                    ->dateTime()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active'),
+                Tables\Filters\SelectFilter::make('role')
+                    ->label('Role')
+                    ->relationship('leaderRoles.roleDefinition', 'name'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
