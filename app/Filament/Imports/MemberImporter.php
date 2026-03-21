@@ -2,6 +2,7 @@
 
 namespace App\Filament\Imports;
 
+use App\Models\Group;
 use App\Models\Member;
 use Filament\Actions\Imports\ImportColumn;
 use Filament\Actions\Imports\Importer;
@@ -67,18 +68,47 @@ class MemberImporter extends Importer
                 ->example('2024-01-01'),
             ImportColumn::make('notes')
                 ->rules(['nullable', 'string']),
+            ImportColumn::make('group')
+                ->label('Group (Bacenta)')
+                ->fillRecordUsing(fn () => null)
+                ->example('Antwerp Central'),
         ];
     }
 
     public function resolveRecord(): ?Member
     {
-        // If email exists, update the existing member
         if ($this->data['email'] ?? null) {
             return Member::firstOrNew(['email' => $this->data['email']]);
         }
 
-        // Otherwise create a new member
         return new Member();
+    }
+
+    public function afterSave(): void
+    {
+        $groupName = trim($this->originalData['group'] ?? '');
+
+        if (!$groupName) {
+            return;
+        }
+
+        $group = Group::where('name', $groupName)->first();
+
+        if (!$group) {
+            // Auto-create the group if it doesn't exist
+            $group = Group::create([
+                'name' => $groupName,
+                'is_active' => true,
+            ]);
+        }
+
+        // Attach member to group if not already attached
+        if (!$this->record->groups()->where('groups.id', $group->id)->exists()) {
+            $this->record->groups()->attach($group->id, [
+                'joined_at' => $this->record->member_since ?? now()->toDateString(),
+                'is_primary' => true,
+            ]);
+        }
     }
 
     public static function getCompletedNotificationBody(Import $import): string
