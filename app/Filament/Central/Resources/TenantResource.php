@@ -77,6 +77,33 @@ class TenantResource extends Resource
                             ->defaultItems(1),
                     ])
                     ->visibleOn('create'),
+
+                Forms\Components\Section::make('Branding')
+                    ->schema([
+                        Forms\Components\TextInput::make('branding_church_name')
+                            ->label('Display Name')
+                            ->helperText('Shown in the admin panel header and mobile app. Defaults to church name above.'),
+                        Forms\Components\TextInput::make('branding_tagline')
+                            ->label('Tagline'),
+                        Forms\Components\ColorPicker::make('branding_color_primary')
+                            ->label('Primary Colour'),
+                        Forms\Components\ColorPicker::make('branding_color_secondary')
+                            ->label('Secondary Colour'),
+                        Forms\Components\FileUpload::make('branding_logo')
+                            ->label('Logo (Light Mode)')
+                            ->image()
+                            ->directory('branding')
+                            ->disk('public')
+                            ->helperText('PNG with transparent background recommended.'),
+                        Forms\Components\FileUpload::make('branding_logo_dark')
+                            ->label('Logo (Dark Mode)')
+                            ->image()
+                            ->directory('branding')
+                            ->disk('public')
+                            ->helperText('Leave empty to use the light mode logo.'),
+                    ])
+                    ->columns(2)
+                    ->visibleOn('edit'),
             ]);
     }
 
