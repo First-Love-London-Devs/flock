@@ -70,6 +70,7 @@ class TenantResource extends Resource
                                 Forms\Components\TextInput::make('domain')
                                     ->required()
                                     ->suffix('.poimen.co.uk')
+                                    ->dehydrateStateUsing(fn (string $state): string => str_contains($state, '.poimen.co.uk') ? $state : $state . '.poimen.co.uk')
                                     ->helperText('Enter subdomain only (e.g. "gochurch")'),
                             ])
                             ->minItems(1)
