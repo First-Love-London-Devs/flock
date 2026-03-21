@@ -34,8 +34,8 @@ class AdminPanelProvider extends PanelProvider
             ->darkModeBrandLogo(fn () => view('filament.brand-dark'))
             ->darkMode()
             ->sidebarCollapsibleOnDesktop()
-            ->colors([
-                'primary' => Color::Indigo,
+            ->colors(fn () => [
+                'primary' => \App\Models\Setting::get('color_primary', '#4f46e5'),
             ])
             ->font('Inter')
             ->navigationGroups([
