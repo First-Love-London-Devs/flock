@@ -31,6 +31,7 @@ class RoleDefinitionResource extends Resource
                     ->columnSpanFull(),
                 Forms\Components\TextInput::make('permission_level')
                     ->numeric()
+                    ->default(0)
                     ->minValue(0)
                     ->maxValue(100),
                 Forms\Components\Select::make('applies_to_group_type_id')
