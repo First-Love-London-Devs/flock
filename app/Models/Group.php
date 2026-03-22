@@ -140,11 +140,6 @@ class Group extends Model
         return $this->ancestors()->pluck('id')->contains($groupId);
     }
 
-    public function getDepthLevel(): int
-    {
-        return $this->ancestors()->count();
-    }
-
     public function getTotalMembersCountAttribute(): int
     {
         return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $this->allGroupIds()))->count();

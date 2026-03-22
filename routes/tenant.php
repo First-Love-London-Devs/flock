@@ -64,7 +64,6 @@ Route::middleware([
         Route::get('/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'index']);
         Route::get('/dashboard/attendance-trends', [App\Http\Controllers\Api\DashboardController::class, 'attendanceTrends']);
         Route::get('/dashboard/defaulters', [App\Http\Controllers\Api\DashboardController::class, 'defaulters']);
-        Route::get('/dashboard/stats', [App\Http\Controllers\Api\DashboardController::class, 'stats']);
 
         // Settings
         Route::get('/settings', [App\Http\Controllers\Api\SettingController::class, 'index']);

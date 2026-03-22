@@ -54,6 +54,11 @@ class AttendanceController extends Controller
 
     public function update(Request $request, int $summaryId): JsonResponse
     {
+        $summary = AttendanceSummary::findOrFail($summaryId);
+        if (!$this->scope->canAccessGroup($summary->group_id)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+        }
+
         $validated = $request->validate([
             'attendances' => 'required|array',
             'attendances.*.member_id' => 'required|exists:members,id',
@@ -87,6 +92,11 @@ class AttendanceController extends Controller
 
     public function destroy(int $summaryId): JsonResponse
     {
+        $summary = AttendanceSummary::findOrFail($summaryId);
+        if (!$this->scope->canAccessGroup($summary->group_id)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+        }
+
         try {
             $this->attendanceService->deleteAttendance($summaryId);
 
@@ -112,6 +122,10 @@ class AttendanceController extends Controller
         try {
             $summary = AttendanceSummary::with(['attendances.member', 'submittedBy.member', 'group'])
                 ->findOrFail($summaryId);
+
+            if (!$this->scope->canAccessGroup($summary->group_id)) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+            }
 
             return response()->json([
                 'success' => true,

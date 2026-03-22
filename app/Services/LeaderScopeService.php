@@ -10,11 +10,13 @@ class LeaderScopeService
 {
     protected ?Collection $accessibleGroupIds = null;
     protected ?Leader $leader = null;
+    protected ?bool $cachedIsSuperAdmin = null;
 
     public function setLeader(Leader $leader): static
     {
         $this->leader = $leader;
         $this->accessibleGroupIds = null;
+        $this->cachedIsSuperAdmin = null;
 
         return $this;
     }
@@ -26,26 +28,18 @@ class LeaderScopeService
 
     public function isSuperAdmin(): bool
     {
-        if (!$this->leader) {
-            return false;
+        if ($this->cachedIsSuperAdmin !== null) {
+            return $this->cachedIsSuperAdmin;
         }
 
-        return $this->leader->leaderRoles()
+        if (!$this->leader) {
+            return $this->cachedIsSuperAdmin = false;
+        }
+
+        return $this->cachedIsSuperAdmin = $this->leader->leaderRoles()
             ->where('is_active', true)
             ->whereHas('roleDefinition', fn ($q) => $q->where('permission_level', 100))
             ->exists();
-    }
-
-    public function getMaxPermissionLevel(): int
-    {
-        if (!$this->leader) {
-            return 0;
-        }
-
-        return $this->leader->leaderRoles()
-            ->where('is_active', true)
-            ->join('role_definitions', 'leader_roles.role_definition_id', '=', 'role_definitions.id')
-            ->max('role_definitions.permission_level') ?? 0;
     }
 
     public function getAccessibleGroupIds(): Collection
@@ -77,7 +71,6 @@ class LeaderScopeService
             }
         }
 
-        // Also include the group the leader directly leads
         if ($this->leader->ledGroup) {
             $allIds = $allIds->merge($this->leader->ledGroup->allGroupIds());
         }

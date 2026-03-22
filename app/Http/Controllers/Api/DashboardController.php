@@ -78,6 +78,10 @@ class DashboardController extends Controller
             'date' => 'required|date',
         ]);
 
+        if (!$this->scope->canAccessGroup((int) $validated['group_id'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+        }
+
         try {
             $attendanceService = app(AttendanceService::class);
             $defaulters = $attendanceService->getDefaulters(
@@ -97,8 +101,4 @@ class DashboardController extends Controller
         }
     }
 
-    public function stats(Request $request): JsonResponse
-    {
-        return $this->index($request);
-    }
 }
