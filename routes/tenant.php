@@ -28,7 +28,7 @@ Route::middleware([
     Route::post('/auth/login', [App\Http\Controllers\Api\AuthController::class, 'login']);
 
     // Protected routes
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', \App\Http\Middleware\InitializeLeaderScope::class])->group(function () {
         Route::post('/auth/logout', [App\Http\Controllers\Api\AuthController::class, 'logout']);
 
         // Group Types

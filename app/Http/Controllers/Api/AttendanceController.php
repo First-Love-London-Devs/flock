@@ -5,13 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceSummary;
 use App\Services\AttendanceService;
+use App\Services\LeaderScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
     public function __construct(
-        protected AttendanceService $attendanceService
+        protected AttendanceService $attendanceService,
+        protected LeaderScopeService $scope,
     ) {}
 
     public function submit(Request $request): JsonResponse
@@ -25,6 +27,10 @@ class AttendanceController extends Controller
             'attendances.*.is_first_timer' => 'boolean',
             'attendances.*.is_visitor' => 'boolean',
         ]);
+
+        if (!$this->scope->canAccessGroup($validated['group_id'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+        }
 
         try {
             $summary = $this->attendanceService->submitAttendance(
@@ -126,6 +132,10 @@ class AttendanceController extends Controller
 
     public function groupHistory(Request $request, int $groupId): JsonResponse
     {
+        if (!$this->scope->canAccessGroup($groupId)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+        }
+
         try {
             $history = $this->attendanceService->getHistory(
                 $groupId,
@@ -147,6 +157,10 @@ class AttendanceController extends Controller
 
     public function defaulters(int $parentGroupId, string $date): JsonResponse
     {
+        if (!$this->scope->canAccessGroup($parentGroupId)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
+        }
+
         try {
             $defaulters = $this->attendanceService->getDefaulters($parentGroupId, $date);
 

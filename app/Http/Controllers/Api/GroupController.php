@@ -5,13 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Services\GroupHierarchyService;
+use App\Services\LeaderScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class GroupController extends Controller
 {
     public function __construct(
-        protected GroupHierarchyService $hierarchyService
+        protected GroupHierarchyService $hierarchyService,
+        protected LeaderScopeService $scope,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -19,6 +21,8 @@ class GroupController extends Controller
         try {
             $query = Group::with(['groupType', 'leader.member'])
                 ->withCount('members');
+
+            $this->scope->scopeGroupsQuery($query);
 
             if ($request->has('group_type_id')) {
                 $query->where('group_type_id', $request->group_type_id);

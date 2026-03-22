@@ -4,15 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
+use App\Services\LeaderScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MemberController extends Controller
 {
+    public function __construct(
+        protected LeaderScopeService $scope,
+    ) {}
     public function index(Request $request): JsonResponse
     {
         try {
             $query = Member::query();
+            $this->scope->scopeMembersQuery($query);
 
             if ($request->has('group_id')) {
                 $query->whereHas('groups', fn ($q) => $q->where('groups.id', $request->group_id));
@@ -184,7 +189,9 @@ class MemberController extends Controller
 
             $search = $request->q;
 
-            $members = Member::where(function ($q) use ($search) {
+            $query = Member::query();
+            $this->scope->scopeMembersQuery($query);
+            $members = $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
