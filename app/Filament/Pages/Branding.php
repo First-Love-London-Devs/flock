@@ -22,6 +22,8 @@ class Branding extends Page implements HasForms
 
     public ?string $church_name = '';
     public ?string $church_tagline = '';
+    public ?string $color_primary = '';
+    public ?string $color_secondary = '';
     public ?array $church_logo = [];
     public ?array $church_logo_dark = [];
 
@@ -33,6 +35,8 @@ class Branding extends Page implements HasForms
         $this->form->fill([
             'church_name' => Setting::get('church_name', ''),
             'church_tagline' => Setting::get('church_tagline', ''),
+            'color_primary' => Setting::get('color_primary', '#4f46e5'),
+            'color_secondary' => Setting::get('color_secondary', '#7c3aed'),
             'church_logo' => $logo ? [str_replace('/storage/', '', $logo)] : [],
             'church_logo_dark' => $logoDark ? [str_replace('/storage/', '', $logoDark)] : [],
         ]);
@@ -52,6 +56,17 @@ class Branding extends Page implements HasForms
                             ->label('Tagline')
                             ->helperText('Optional tagline shown in the mobile app.'),
                     ]),
+
+                Forms\Components\Section::make('Colors')
+                    ->schema([
+                        Forms\Components\ColorPicker::make('color_primary')
+                            ->label('Primary Color')
+                            ->helperText('Main brand color used throughout the app.'),
+                        Forms\Components\ColorPicker::make('color_secondary')
+                            ->label('Secondary Color')
+                            ->helperText('Accent color for highlights and secondary elements.'),
+                    ])
+                    ->columns(2),
 
                 Forms\Components\Section::make('Logo')
                     ->schema([
@@ -78,6 +93,8 @@ class Branding extends Page implements HasForms
 
         Setting::set('church_name', $data['church_name']);
         Setting::set('church_tagline', $data['church_tagline'] ?? '');
+        Setting::set('color_primary', $data['color_primary'] ?? '#4f46e5');
+        Setting::set('color_secondary', $data['color_secondary'] ?? '#7c3aed');
 
         $logo = collect($data['church_logo'] ?? [])->first();
         $logoDark = collect($data['church_logo_dark'] ?? [])->first();
