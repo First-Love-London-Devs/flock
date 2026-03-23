@@ -22,16 +22,19 @@ class Branding extends Page implements HasForms
 
     public ?string $church_name = '';
     public ?string $church_tagline = '';
-    public ?string $church_logo = '';
-    public ?string $church_logo_dark = '';
+    public ?array $church_logo = [];
+    public ?array $church_logo_dark = [];
 
     public function mount(): void
     {
+        $logo = Setting::get('church_logo', '');
+        $logoDark = Setting::get('church_logo_dark', '');
+
         $this->form->fill([
             'church_name' => Setting::get('church_name', ''),
             'church_tagline' => Setting::get('church_tagline', ''),
-            'church_logo' => Setting::get('church_logo', ''),
-            'church_logo_dark' => Setting::get('church_logo_dark', ''),
+            'church_logo' => $logo ? [str_replace('/storage/', '', $logo)] : [],
+            'church_logo_dark' => $logoDark ? [str_replace('/storage/', '', $logoDark)] : [],
         ]);
     }
 
@@ -76,8 +79,8 @@ class Branding extends Page implements HasForms
         Setting::set('church_name', $data['church_name']);
         Setting::set('church_tagline', $data['church_tagline'] ?? '');
 
-        $logo = $data['church_logo'] ?? '';
-        $logoDark = $data['church_logo_dark'] ?? '';
+        $logo = collect($data['church_logo'] ?? [])->first();
+        $logoDark = collect($data['church_logo_dark'] ?? [])->first();
 
         Setting::set('church_logo', $logo ? '/storage/' . $logo : '');
         Setting::set('church_logo_dark', $logoDark ? '/storage/' . $logoDark : '');
