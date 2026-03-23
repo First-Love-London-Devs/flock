@@ -24,8 +24,9 @@ Route::middleware([
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->prefix('api/v1')->group(function () {
-    // Auth (no auth required)
+    // Public routes (no auth required)
     Route::post('/auth/login', [App\Http\Controllers\Api\AuthController::class, 'login']);
+    Route::get('/branding', [App\Http\Controllers\Api\BrandingController::class, 'index']);
 
     // Protected routes
     Route::middleware(['auth:sanctum', \App\Http\Middleware\InitializeLeaderScope::class])->group(function () {
