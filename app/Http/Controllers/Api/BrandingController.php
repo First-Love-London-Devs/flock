@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 
 class BrandingController extends Controller
@@ -14,12 +15,12 @@ class BrandingController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'church_name' => $tenant->branding_church_name ?? $tenant->church_name,
-                'tagline' => $tenant->branding_tagline ?? null,
-                'color_primary' => $tenant->branding_color_primary ?? null,
-                'color_secondary' => $tenant->branding_color_secondary ?? null,
-                'logo' => $tenant->branding_logo ?? null,
-                'logo_dark' => $tenant->branding_logo_dark ?? null,
+                'church_name' => Setting::get('church_name', $tenant->church_name),
+                'tagline' => Setting::get('tagline'),
+                'color_primary' => Setting::get('color_primary'),
+                'color_secondary' => Setting::get('color_secondary'),
+                'logo' => Setting::get('logo'),
+                'logo_dark' => Setting::get('logo_dark'),
             ],
         ]);
     }
