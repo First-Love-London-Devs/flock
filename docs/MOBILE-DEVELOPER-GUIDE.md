@@ -293,7 +293,7 @@ Paginated endpoints return:
 | description | string | No | |
 | level | integer | Yes | 0 = top level |
 | tracks_attendance | boolean | No | default false |
-| color | string | No | hex color, max 7 |
+| color | string | No | hex color, max 50 |
 | icon | string | No | icon identifier, max 50 |
 
 ### GET /group-types/{id}
@@ -377,14 +377,19 @@ Paginated endpoints return:
 | email | string | No | unique |
 | phone_number | string | No | max 50 |
 | date_of_birth | date | No | YYYY-MM-DD |
-| gender | string | No | male, female, other |
+| gender | string | No | male, female |
 | address | string | No | |
 | picture | string | No | file path/URL |
-| marital_status | string | No | max 50 |
+| marital_status | string | No | |
 | occupation | string | No | max 255 |
+| nbs_status | string | No | not_started, in_progress, completed |
+| holy_ghost_baptism | boolean | No | default false |
+| water_baptism | boolean | No | default false |
+| member_type | string | No | member, visitor, first_timer, new_convert |
+| profile_completed | boolean | No | |
 | member_since | date | No | YYYY-MM-DD |
-| is_active | boolean | No | default true |
 | notes | string | No | |
+| additional_info | object | No | JSON key-value pairs |
 
 ### GET /members/{id}
 > Returns member with groups (pivot: joined_at, is_primary) and leader
@@ -396,7 +401,7 @@ Paginated endpoints return:
 > Soft delete
 
 ### GET /members/search?q={query}
-> Quick search, returns max 20 results
+> Quick search by name, email, or phone. Returns max 20 results. The `q` parameter is required (min 1 character).
 
 ### POST /members/{id}/assign-group
 > Assign member to a group
@@ -423,7 +428,7 @@ Paginated endpoints return:
 |-------|------|-------------|
 | is_active | boolean | Filter active/inactive |
 
-**Response includes:** member, leaderRoles.roleDefinition, leaderRoles.group, ledGroup
+**Response includes:** member, leaderRoles.roleDefinition, ledGroup
 
 ### POST /leaders
 > Create a leader (links to existing member)
@@ -435,12 +440,28 @@ Paginated endpoints return:
 | password | string | Yes | min 8 chars |
 
 ### GET /leaders/{id}
+> Returns leader with member, leaderRoles.roleDefinition, leaderRoles.group, ledGroup
+
 ### PUT /leaders/{id}
+> Update leader
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| username | string | No | unique, max 255 |
+| password | string | No | min 8 chars |
+| is_active | boolean | No | |
+| notification_token | string | No | nullable |
+
 ### DELETE /leaders/{id}
-> Standard CRUD
+> Delete leader
 
 ### POST /leaders/{id}/assign-role
-> Assign a role scoped to a group
+> Assign a role, optionally scoped to a group
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| role_definition_id | integer | Yes | must exist |
+| group_id | integer | No | scope role to a specific group |
 
 ```json
 {
@@ -449,7 +470,7 @@ Paginated endpoints return:
 }
 ```
 
-**Response:** LeaderRole with roleDefinition and group
+**Response (201):** LeaderRole with roleDefinition and group
 
 ### DELETE /leaders/{id}/remove-role/{roleId}
 > Remove a role assignment
@@ -457,6 +478,8 @@ Paginated endpoints return:
 ---
 
 ## Attendance
+
+> **Note:** All attendance endpoints enforce group-level permissions. Leaders can only access attendance for groups they have access to. Returns 403 if the leader cannot access the specified group.
 
 ### POST /attendance/submit
 > Submit attendance for a group on a date
@@ -542,12 +565,12 @@ Only checks groups whose GroupType has `tracks_attendance = true`.
 ## Dashboard
 
 ### GET /dashboard
-> Overview stats, optionally scoped to a group
+> Overview stats, optionally scoped to a group. If no `group_id` is provided and the leader is not a super admin, stats are automatically scoped to their first accessible group.
 
 **Query Params:**
 | Param | Type | Description |
 |-------|------|-------------|
-| group_id | integer | Scope stats to group + descendants |
+| group_id | integer | Scope stats to group + descendants (403 if no access) |
 
 **Response:**
 ```json
@@ -565,13 +588,10 @@ Only checks groups whose GroupType has `tracks_attendance = true`.
         "first_timer_count": 3,
         "submissions": 8
       }
-    ]
+    ]  // last 4 weeks included in dashboard stats
   }
 }
 ```
-
-### GET /dashboard/stats
-> Alias for /dashboard
 
 ### GET /dashboard/attendance-trends
 > Weekly attendance trends
@@ -709,7 +729,7 @@ These run automatically via cron — no API calls needed:
 | datetime | ISO 8601 | 2026-03-20T14:30:00.000000Z |
 | time | HH:mm | 10:30 |
 | meeting_day | 0-6 | 0 (Sunday) |
-| gender | enum | male, female, other |
+| gender | enum | male, female |
 | boolean | true/false | true |
 
 ---
@@ -749,10 +769,10 @@ Based on the API, here's a recommended screen structure:
 ## Error Handling Best Practices
 
 ```
-401 → Token expired → redirect to login
-403 → No permission → show "Access Denied"
+401 → Token expired/unauthenticated → redirect to login
+403 → No permission (leader lacks access to the requested group/resource) → show "Access Denied"
 404 → Resource not found → show "Not Found"
-422 → Validation error → show field-level errors
+422 → Validation error or conflict (e.g., duplicate attendance) → show field-level errors
 429 → Rate limited → retry after delay
 500 → Server error → show "Something went wrong"
 ```
