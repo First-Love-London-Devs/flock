@@ -3,18 +3,20 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>@yield('title') - Church Stack</title>
+        <title>@yield('title') - Flock</title>
+        <link rel="icon" type="image/png" href="/images/flock-logo.png">
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
         <style>
             *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: 'Figtree', sans-serif; color: #1a1a2e; background: #f8f9fb; line-height: 1.6; }
+            body { font-family: 'Inter', sans-serif; color: #1a1a2e; background: #f8f9fb; line-height: 1.6; }
             a { color: #4f46e5; text-decoration: none; }
             a:hover { text-decoration: underline; }
 
             .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
-            .nav-brand { font-size: 1.25rem; font-weight: 700; color: #1a1a2e; text-decoration: none; }
+            .nav-brand { display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem; font-weight: 700; color: #1a1a2e; text-decoration: none; }
             .nav-brand:hover { text-decoration: none; }
+            .nav-brand img { width: 32px; height: 32px; object-fit: contain; }
             .nav-links { display: flex; gap: 1.5rem; }
             .nav-links a { color: #6b7280; font-size: 0.875rem; font-weight: 500; }
             .nav-links a:hover { color: #4f46e5; text-decoration: none; }
@@ -49,7 +51,7 @@
     </head>
     <body>
         <nav class="nav">
-            <a href="/" class="nav-brand">Church Stack</a>
+            <a href="/" class="nav-brand"><img src="/images/flock-logo.png" alt="Flock logo">Flock</a>
             <div class="nav-links">
                 <a href="/support">Support</a>
                 <a href="/privacy">Privacy</a>

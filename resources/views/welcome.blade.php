@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flock - Modern Church Management System</title>
     <meta name="description" content="Streamline attendance, connect leaders, and grow your church with Flock — the intelligent church management platform built for modern churches.">
+    <link rel="icon" type="image/png" href="/images/flock-logo.png">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900&display=swap" rel="stylesheet" />
     <style>
@@ -33,7 +34,7 @@
         .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,0.06); padding: 1rem 0; transition: all 0.3s; }
         .nav .container { display: flex; align-items: center; justify-content: space-between; }
         .nav-brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.35rem; font-weight: 800; }
-        .nav-brand svg { width: 32px; height: 32px; }
+        .nav-brand img { width: 36px; height: 36px; object-fit: contain; }
         .nav-links { display: flex; align-items: center; gap: 2rem; }
         .nav-links a { font-size: 0.9rem; font-weight: 500; color: #6b7280; transition: color 0.2s; }
         .nav-links a:hover { color: #4f46e5; }
@@ -284,11 +285,7 @@
 <nav class="nav">
     <div class="container">
         <a href="/" class="nav-brand">
-            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="32" height="32" rx="8" fill="#4f46e5"/>
-                <path d="M16 6C14.5 6 13 7.5 13 7.5L9 12.5C9 12.5 7 15 7 17.5C7 22.5 11 26 16 26C21 26 25 22.5 25 17.5C25 15 23 12.5 23 12.5L19 7.5C19 7.5 17.5 6 16 6Z" fill="white" fill-opacity="0.9"/>
-                <path d="M16 10C15 10 14 11 14 11L12 13.5C12 13.5 10.5 15.5 10.5 17C10.5 20 13 22 16 22C19 22 21.5 20 21.5 17C21.5 15.5 20 13.5 20 13.5L18 11C18 11 17 10 16 10Z" fill="#4f46e5"/>
-            </svg>
+            <img src="/images/flock-logo.png" alt="Flock logo">
             Flock
         </a>
         <div class="nav-links">
@@ -838,11 +835,7 @@
         <div class="footer-grid">
             <div class="footer-brand">
                 <div class="footer-brand-name">
-                    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;">
-                        <rect width="32" height="32" rx="8" fill="#4f46e5"/>
-                        <path d="M16 6C14.5 6 13 7.5 13 7.5L9 12.5C9 12.5 7 15 7 17.5C7 22.5 11 26 16 26C21 26 25 22.5 25 17.5C25 15 23 12.5 23 12.5L19 7.5C19 7.5 17.5 6 16 6Z" fill="white" fill-opacity="0.9"/>
-                        <path d="M16 10C15 10 14 11 14 11L12 13.5C12 13.5 10.5 15.5 10.5 17C10.5 20 13 22 16 22C19 22 21.5 20 21.5 17C21.5 15.5 20 13.5 20 13.5L18 11C18 11 17 10 16 10Z" fill="#4f46e5"/>
-                    </svg>
+                    <img src="/images/flock-logo.png" alt="Flock logo" style="width:28px;height:28px;object-fit:contain;">
                     Flock
                 </div>
                 <p>Modern church management software built for growing churches. Track attendance, manage members, and empower your leaders.</p>
