@@ -10,7 +10,7 @@
         <style>
             *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: 'Inter', sans-serif; color: #1a1a2e; background: #f8f9fb; line-height: 1.6; }
-            a { color: #4f46e5; text-decoration: none; }
+            a { color: #F5A623; text-decoration: none; }
             a:hover { text-decoration: underline; }
 
             .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
@@ -19,7 +19,7 @@
             .nav-brand img { width: 32px; height: 32px; object-fit: contain; }
             .nav-links { display: flex; gap: 1.5rem; }
             .nav-links a { color: #6b7280; font-size: 0.875rem; font-weight: 500; }
-            .nav-links a:hover { color: #4f46e5; text-decoration: none; }
+            .nav-links a:hover { color: #F5A623; text-decoration: none; }
 
             .container { max-width: 48rem; margin: 0 auto; padding: 3rem 1.5rem; }
             .page-title { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
@@ -37,7 +37,7 @@
 
             .footer { border-top: 1px solid #e5e7eb; padding: 2rem; text-align: center; color: #9ca3af; font-size: 0.8rem; margin-top: 3rem; }
             .footer a { color: #9ca3af; }
-            .footer a:hover { color: #4f46e5; }
+            .footer a:hover { color: #F5A623; }
             .footer-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 0.75rem; }
 
             @media (max-width: 640px) {
