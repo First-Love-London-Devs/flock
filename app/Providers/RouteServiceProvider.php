@@ -32,9 +32,18 @@ class RouteServiceProvider extends ServiceProvider
             Route::middleware('api')
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));
+        });
 
-            Route::middleware('web')
-                ->group(base_path('routes/web.php'));
+        // Load web routes after tenant routes to prevent tenant's catch-all
+        // from overriding central domain pages (landing, support, privacy)
+        $this->app->booted(function () {
+            $centralDomains = config('tenancy.central_domains', []);
+
+            foreach ($centralDomains as $domain) {
+                Route::middleware('web')
+                    ->domain($domain)
+                    ->group(base_path('routes/web.php'));
+            }
         });
     }
 }
