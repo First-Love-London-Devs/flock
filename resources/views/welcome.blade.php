@@ -7,7 +7,7 @@
     <meta name="description" content="Streamline attendance, connect leaders, and grow your church with Flock — the intelligent church management platform built for modern churches.">
     <link rel="icon" type="image/png" href="/images/flock-logo.png">
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|playfair-display:600,700,800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|dm-sans:500,600,700,800&display=swap" rel="stylesheet" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
@@ -26,7 +26,7 @@
         .btn-secondary-light:hover { border-color: #E8A838; color: #E8A838; }
         .btn-large { padding: 1rem 2.5rem; font-size: 1.1rem; }
         .section-label { display: inline-block; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #E8A838; border: 1px solid rgba(232,168,56,0.3); padding: 0.35rem 1rem; border-radius: 2px; margin-bottom: 1rem; font-family: 'Inter', sans-serif; }
-        .section-title { font-size: 2.5rem; font-weight: 700; line-height: 1.15; margin-bottom: 1rem; font-family: 'Playfair Display', serif; }
+        .section-title { font-size: 2.5rem; font-weight: 700; line-height: 1.15; margin-bottom: 1rem; font-family: 'DM Sans', sans-serif; }
         .section-desc { font-size: 1.1rem; color: #6B6560; max-width: 600px; line-height: 1.7; }
         .text-center { text-align: center; }
         .mx-auto { margin-left: auto; margin-right: auto; }
@@ -35,7 +35,7 @@
         /* ── Nav ── */
         .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(43,43,43,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(232,168,56,0.1); padding: 1rem 0; transition: all 0.2s ease; }
         .nav .container { display: flex; align-items: center; justify-content: space-between; }
-        .nav-brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.35rem; font-weight: 700; color: #F0EBE3; font-family: 'Playfair Display', serif; }
+        .nav-brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.35rem; font-weight: 700; color: #F0EBE3; font-family: 'DM Sans', sans-serif; }
         .nav-brand img { width: 36px; height: 36px; object-fit: contain; }
         .nav-links { display: flex; align-items: center; gap: 2rem; }
         .nav-links a { font-size: 0.9rem; font-weight: 500; color: #A39E96; transition: color 0.2s ease; position: relative; }
@@ -53,7 +53,7 @@
         .hero-content { max-width: 750px; margin: 0 auto; text-align: center; }
         .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid rgba(232,168,56,0.3); padding: 0.4rem 1rem 0.4rem 0.75rem; border-radius: 2px; font-size: 0.85rem; color: #A39E96; margin-bottom: 2rem; }
         .hero-badge-dot { width: 8px; height: 8px; background: #E8A838; border-radius: 50%; }
-        .hero h1 { font-size: 4rem; font-weight: 800; line-height: 1.08; margin-bottom: 1.5rem; letter-spacing: -0.02em; color: #F0EBE3; font-family: 'Playfair Display', serif; }
+        .hero h1 { font-size: 4rem; font-weight: 800; line-height: 1.08; margin-bottom: 1.5rem; letter-spacing: -0.02em; color: #F0EBE3; font-family: 'DM Sans', sans-serif; }
         .hero p { font-size: 1.25rem; color: #A39E96; max-width: 560px; margin: 0 auto 2.5rem; line-height: 1.7; }
         .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
         .hero-visual { margin-top: 4rem; position: relative; }
@@ -72,7 +72,7 @@
         .mockup-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
         .mockup-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 2px; padding: 1rem; }
         .mockup-stat-label { font-size: 0.65rem; color: #A39E96; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
-        .mockup-stat-value { font-size: 1.5rem; font-weight: 700; color: #F0EBE3; font-family: 'Playfair Display', serif; }
+        .mockup-stat-value { font-size: 1.5rem; font-weight: 700; color: #F0EBE3; font-family: 'DM Sans', sans-serif; }
         .mockup-chart { flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 2px; padding: 1rem; position: relative; overflow: hidden; }
         .mockup-chart-title { font-size: 0.75rem; color: #A39E96; margin-bottom: 1rem; }
         .mockup-chart-bars { display: flex; align-items: flex-end; gap: 0.5rem; height: 120px; padding-top: 0.5rem; }
@@ -89,29 +89,14 @@
 
         .gold-divider { height: 1px; background: rgba(232,168,56,0.15); border: none; }
 
-        /* ── Testimonials ── */
-        .testimonials { padding: 6rem 0; background: #2B2B2B; }
-        .testimonials-header { text-align: center; margin-bottom: 4rem; }
-        .testimonials-header .section-label { color: #E8A838; border-color: rgba(232,168,56,0.3); }
-        .testimonials-header .section-title { color: #F0EBE3; }
-        .testimonials-header .section-desc { color: #A39E96; margin: 0 auto; }
-        .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
-        .testimonial-card { background: #363636; border-radius: 4px; padding: 2rem; box-shadow: 0 2px 16px rgba(0,0,0,0.15); transition: all 0.2s ease; }
-        .testimonial-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
-        .testimonial-quote-mark { font-size: 3rem; line-height: 1; color: #E8A838; font-family: 'Playfair Display', serif; margin-bottom: 0.75rem; }
-        .testimonial-text { font-size: 0.95rem; color: #F0EBE3; line-height: 1.7; margin-bottom: 1.5rem; }
-        .testimonial-divider { height: 1px; background: rgba(232,168,56,0.2); margin-bottom: 1.25rem; }
-        .testimonial-author { font-size: 1rem; font-weight: 600; color: #F0EBE3; font-family: 'Playfair Display', serif; }
-        .testimonial-role { font-size: 0.8rem; color: #A39E96; margin-top: 0.2rem; }
-
-        /* ── Why We Built ── */
+/* ── Why We Built ── */
         .why-built { padding: 6rem 0; background: #FAF6F0; }
         .why-built-content { display: grid; grid-template-columns: 1.2fr 1fr; gap: 4rem; align-items: start; }
         .why-built-story .section-title { font-size: 2.25rem; }
         .why-built-story p { font-size: 0.95rem; color: #6B6560; line-height: 1.75; margin-bottom: 1.25rem; }
         .why-built-beliefs { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 0.5rem; }
         .belief-item { border-left: 3px solid #E8A838; padding-left: 1.25rem; }
-        .belief-item h3 { font-size: 1.1rem; font-weight: 600; font-family: 'Playfair Display', serif; margin-bottom: 0.35rem; color: #1F1F1F; }
+        .belief-item h3 { font-size: 1.1rem; font-weight: 600; font-family: 'DM Sans', sans-serif; margin-bottom: 0.35rem; color: #1F1F1F; }
         .belief-item p { font-size: 0.85rem; color: #6B6560; line-height: 1.6; }
 
         /* ── Comparison ── */
@@ -119,7 +104,7 @@
         .comparison-header { text-align: center; margin-bottom: 3rem; }
         .comparison-header .section-desc { margin: 0 auto; }
         .comparison-tables { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 4rem; }
-        .comparison-block h3 { font-size: 1.5rem; font-weight: 700; font-family: 'Playfair Display', serif; margin-bottom: 0.5rem; text-align: center; }
+        .comparison-block h3 { font-size: 1.5rem; font-weight: 700; font-family: 'DM Sans', sans-serif; margin-bottom: 0.5rem; text-align: center; }
         .comparison-block .comparison-sub { font-size: 0.95rem; color: #6B6560; text-align: center; margin-bottom: 1.5rem; }
         .comparison-table { width: 100%; border-collapse: collapse; background: #FAF6F0; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 16px rgba(43,43,43,0.06); }
         .comparison-table thead th { padding: 1rem 1.25rem; text-align: left; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #A39E96; border-bottom: 1px solid rgba(232,168,56,0.15); }
@@ -140,7 +125,7 @@
         .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(43,43,43,0.1); }
         .feature-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; background: #E8A838; color: #2B2B2B; }
         .feature-icon svg { width: 24px; height: 24px; }
-        .feature-card h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.5rem; font-family: 'Playfair Display', serif; }
+        .feature-card h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.5rem; font-family: 'DM Sans', sans-serif; }
         .feature-card p { font-size: 0.9rem; color: #6B6560; line-height: 1.65; }
 
         /* ── Hierarchy ── */
@@ -178,9 +163,9 @@
         .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; position: relative; }
         .steps::before { content: ''; position: absolute; top: 32px; left: 60px; right: 60px; height: 1.5px; background: rgba(232,168,56,0.3); z-index: 0; }
         .step { text-align: center; position: relative; z-index: 1; }
-        .step-number { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 1.25rem; background: #FAF6F0; border: 2px solid rgba(232,168,56,0.3); color: #E8A838; transition: all 0.2s ease; font-family: 'Playfair Display', serif; }
+        .step-number { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 1.25rem; background: #FAF6F0; border: 2px solid rgba(232,168,56,0.3); color: #E8A838; transition: all 0.2s ease; font-family: 'DM Sans', sans-serif; }
         .step:hover .step-number { background: #E8A838; color: #2B2B2B; border-color: #E8A838; }
-        .step h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; font-family: 'Playfair Display', serif; }
+        .step h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; font-family: 'DM Sans', sans-serif; }
         .step p { font-size: 0.85rem; color: #6B6560; line-height: 1.6; padding: 0 0.5rem; }
 
         /* ── Mobile ── */
@@ -200,11 +185,11 @@
         .phone-screen { background: #1F1F1F; border-radius: 2rem; overflow: hidden; min-height: 520px; }
         .phone-header { padding: 2.5rem 1.25rem 1rem; background: #E8A838; }
         .phone-greeting { font-size: 0.7rem; color: rgba(43,43,43,0.6); margin-bottom: 0.25rem; }
-        .phone-name { font-size: 1.1rem; font-weight: 700; color: #2B2B2B; font-family: 'Playfair Display', serif; }
+        .phone-name { font-size: 1.1rem; font-weight: 700; color: #2B2B2B; font-family: 'DM Sans', sans-serif; }
         .phone-stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; padding: 1rem 1.25rem; }
         .phone-stat-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; padding: 0.75rem; }
         .phone-stat-card .label { font-size: 0.55rem; color: #A39E96; text-transform: uppercase; letter-spacing: 0.05em; }
-        .phone-stat-card .value { font-size: 1.25rem; font-weight: 700; margin-top: 0.15rem; font-family: 'Playfair Display', serif; }
+        .phone-stat-card .value { font-size: 1.25rem; font-weight: 700; margin-top: 0.15rem; font-family: 'DM Sans', sans-serif; }
         .phone-stat-card .value.indigo { color: #E8A838; }
         .phone-stat-card .value.green { color: #6ee7b7; }
         .phone-stat-card .value.amber { color: #fcd34d; }
@@ -226,8 +211,8 @@
         .pricing-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(43,43,43,0.1); }
         .pricing-card.featured { border: 1.5px solid #E8A838; box-shadow: 0 16px 48px rgba(232,168,56,0.12); }
         .pricing-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #E8A838; color: #2B2B2B; font-size: 0.7rem; font-weight: 700; padding: 0.3rem 1rem; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .pricing-name { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; font-family: 'Playfair Display', serif; }
-        .pricing-price { font-size: 3rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.03em; font-family: 'Playfair Display', serif; }
+        .pricing-name { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; font-family: 'DM Sans', sans-serif; }
+        .pricing-price { font-size: 3rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.03em; font-family: 'DM Sans', sans-serif; }
         .pricing-period { font-size: 0.85rem; color: #A39E96; margin-bottom: 2rem; }
         .pricing-features { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem; text-align: left; }
         .pricing-feature { display: flex; align-items: center; gap: 0.6rem; font-size: 0.875rem; color: #6B6560; }
@@ -239,7 +224,7 @@
         .faq-header { text-align: center; margin-bottom: 4rem; }
         .faq-grid { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; }
         .faq-item { border-bottom: 1px solid rgba(232,168,56,0.2); overflow: hidden; background: transparent; }
-        .faq-question { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 0; cursor: pointer; font-weight: 600; font-size: 1rem; width: 100%; background: none; border: none; text-align: left; color: #1F1F1F; font-family: 'Playfair Display', serif; }
+        .faq-question { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 0; cursor: pointer; font-weight: 600; font-size: 1rem; width: 100%; background: none; border: none; text-align: left; color: #1F1F1F; font-family: 'DM Sans', sans-serif; }
         .faq-question:hover { color: #E8A838; }
         .faq-question svg { width: 20px; height: 20px; min-width: 20px; transition: transform 0.2s ease; color: #A39E96; }
         .faq-item.open .faq-question svg { transform: rotate(45deg); color: #E8A838; }
@@ -251,7 +236,7 @@
         .cta { padding: 6rem 0; background: #FAF6F0; }
         .cta-box { background: #2B2B2B; border-radius: 4px; padding: 4rem 3rem; text-align: center; color: #F0EBE3; position: relative; overflow: hidden; }
         .cta-box > * { position: relative; z-index: 1; }
-        .cta-box h2 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; font-family: 'Playfair Display', serif; }
+        .cta-box h2 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; font-family: 'DM Sans', sans-serif; }
         .cta-box p { font-size: 1.1rem; color: #A39E96; margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto; }
         .cta-box .btn-primary { background: #E8A838; color: #2B2B2B; }
         .cta-box .btn-primary:hover { background: #D4952E; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,168,56,0.25); }
@@ -259,7 +244,7 @@
         /* ── Footer ── */
         .footer { padding: 4rem 0 2rem; background: #222222; border-top: 1px solid rgba(232,168,56,0.15); }
         .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
-        .footer-brand-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; color: #F0EBE3; font-family: 'Playfair Display', serif; }
+        .footer-brand-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; color: #F0EBE3; font-family: 'DM Sans', sans-serif; }
         .footer-brand p { font-size: 0.85rem; color: #A39E96; line-height: 1.6; max-width: 280px; }
         .footer-col h4 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #A39E96; margin-bottom: 1rem; }
         .footer-col a { display: block; font-size: 0.9rem; color: #6B6560; padding: 0.3rem 0; transition: color 0.2s ease; }
@@ -271,7 +256,6 @@
             .hero h1 { font-size: 3rem; }
             .section-title { font-size: 2rem; }
             .features-grid { grid-template-columns: repeat(2, 1fr); }
-            .testimonials-grid { grid-template-columns: 1fr; max-width: 500px; margin: 0 auto; }
             .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
             .hierarchy-content, .mobile-content, .why-built-content { grid-template-columns: 1fr; gap: 3rem; }
             .hierarchy-visual { order: -1; }
@@ -337,7 +321,7 @@
         <div class="hero-content">
             <div class="hero-badge">
                 <span class="hero-badge-dot"></span>
-                Now serving churches across the UK
+                Now serving churches worldwide
             </div>
             <h1>The smarter way to <span class="accent">manage&nbsp;your&nbsp;church</span></h1>
             <p>Track attendance, manage members, empower leaders, and gain real-time insights — all from one powerful platform built for growing churches.</p>
@@ -473,44 +457,6 @@
         </div>
     </div>
 </section>
-
-<!-- ── Testimonials ── -->
-<section class="testimonials">
-    <div class="container">
-        <div class="testimonials-header">
-            <span class="section-label">Trusted by Churches</span>
-            <h2 class="section-title">What church leaders are saying</h2>
-        </div>
-        <div class="testimonials-grid">
-            <!-- PLACEHOLDER: Replace with real testimonial -->
-            <div class="testimonial-card">
-                <div class="testimonial-quote-mark">"</div>
-                <p class="testimonial-text">Before Flock, our attendance data was scattered across WhatsApp groups and paper registers. Now every leader submits in seconds, and I can see the whole church from my phone. It's transformed how we track growth.</p>
-                <div class="testimonial-divider"></div>
-                <div class="testimonial-author">Pastor James Adeyemi</div>
-                <div class="testimonial-role">Senior Pastor, Grace Assembly, London</div>
-            </div>
-            <!-- PLACEHOLDER: Replace with real testimonial -->
-            <div class="testimonial-card">
-                <div class="testimonial-quote-mark">"</div>
-                <p class="testimonial-text">I used to spend my Monday evenings chasing members for attendance numbers. With Flock, I mark attendance during the meeting and it's done. My district pastor sees it instantly.</p>
-                <div class="testimonial-divider"></div>
-                <div class="testimonial-author">Sarah Okonkwo</div>
-                <div class="testimonial-role">Cell Leader, Covenant House, Birmingham</div>
-            </div>
-            <!-- PLACEHOLDER: Replace with real testimonial -->
-            <div class="testimonial-card">
-                <div class="testimonial-quote-mark">"</div>
-                <p class="testimonial-text">We tried spreadsheets, we tried other tools — nothing fit our structure. Flock understood that we organise by zones and districts, not departments. Setup took us about 20 minutes.</p>
-                <div class="testimonial-divider"></div>
-                <div class="testimonial-author">David Mensah</div>
-                <div class="testimonial-role">Administrator, New Life Chapel, Manchester</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<hr class="gold-divider">
 
 <!-- ── Hierarchy ── -->
 <section class="hierarchy">
@@ -722,9 +668,9 @@
                             <td class="check-yes">Built-in, unlimited depth</td>
                         </tr>
                         <tr>
-                            <td>UK-focused</td>
-                            <td class="check-no">Mostly US-based</td>
-                            <td class="check-yes">Designed for UK churches</td>
+                            <td>Built for global churches</td>
+                            <td class="check-no">Mostly US-centric</td>
+                            <td class="check-yes">Works for any church, anywhere</td>
                         </tr>
                         <tr>
                             <td>Mobile-first attendance</td>
