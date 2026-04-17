@@ -22,6 +22,18 @@ class AttendanceSummaryImporter extends Importer
     /** @var array<string, true> */
     protected static array $ambiguousGroups = [];
 
+    public function __construct(
+        Import $import,
+        array $columnMap,
+        array $options,
+    ) {
+        parent::__construct($import, $columnMap, $options);
+
+        static::$groupCache = [];
+        static::$unmatchedGroups = [];
+        static::$ambiguousGroups = [];
+    }
+
     public static function getColumns(): array
     {
         return [
