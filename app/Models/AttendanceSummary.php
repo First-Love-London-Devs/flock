@@ -38,6 +38,11 @@ class AttendanceSummary extends Model
         return $this->hasMany(Attendance::class);
     }
 
+    public function nonMemberAttendances(): HasMany
+    {
+        return $this->hasMany(NonMemberAttendance::class);
+    }
+
     public function scopeForDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('date', [$startDate, $endDate]);

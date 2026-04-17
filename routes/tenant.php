@@ -48,6 +48,9 @@ Route::middleware([
         Route::delete('/members/{id}/remove-group/{groupId}', [App\Http\Controllers\Api\MemberController::class, 'removeGroup']);
         Route::apiResource('members', App\Http\Controllers\Api\MemberController::class);
 
+        // Non-Members
+        Route::apiResource('non-members', App\Http\Controllers\Api\NonMemberController::class);
+
         // Leaders
         Route::post('/leaders/{id}/assign-role', [App\Http\Controllers\Api\LeaderController::class, 'assignRole']);
         Route::delete('/leaders/{id}/remove-role/{roleId}', [App\Http\Controllers\Api\LeaderController::class, 'removeRole']);
