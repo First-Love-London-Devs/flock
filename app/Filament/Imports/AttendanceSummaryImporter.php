@@ -3,12 +3,96 @@
 namespace App\Filament\Imports;
 
 use App\Models\AttendanceSummary;
+use App\Models\Group;
+use Filament\Actions\Imports\ImportColumn;
 use Filament\Actions\Imports\Importer;
 use Filament\Actions\Imports\Models\Import;
+use Illuminate\Validation\ValidationException;
 
 class AttendanceSummaryImporter extends Importer
 {
     protected static ?string $model = AttendanceSummary::class;
+
+    /** @var array<string, array<int, Group>> */
+    protected static array $groupCache = [];
+
+    /** @var array<string, true> */
+    protected static array $unmatchedGroups = [];
+
+    /** @var array<string, true> */
+    protected static array $ambiguousGroups = [];
+
+    public static function getColumns(): array
+    {
+        return [
+            ImportColumn::make('date')
+                ->requiredMapping()
+                ->rules(['required', 'date'])
+                ->example('2025-10-05'),
+            ImportColumn::make('group')
+                ->label('Bacenta Name')
+                ->requiredMapping()
+                ->rules(['required', 'string'])
+                ->fillRecordUsing(fn () => null)
+                ->example('Fruitfulness 1'),
+            ImportColumn::make('total_attendance')
+                ->requiredMapping()
+                ->rules(['required', 'integer', 'min:0'])
+                ->example('40'),
+        ];
+    }
+
+    public function resolveRecord(): ?AttendanceSummary
+    {
+        $groupName = trim((string) ($this->data['group'] ?? ''));
+        $date = $this->data['date'] ?? null;
+
+        if ($groupName === '' || !$date) {
+            return null;
+        }
+
+        $group = static::resolveGroup($groupName);
+
+        return AttendanceSummary::firstOrNew([
+            'group_id' => $group->id,
+            'date' => $date,
+        ]);
+    }
+
+    /**
+     * Looks up a Group by normalized name. Throws ValidationException on
+     * missing or ambiguous matches so Filament records a specific reason on
+     * the failed_import_rows row.
+     */
+    protected static function resolveGroup(string $rawName): Group
+    {
+        $key = static::normalizeName($rawName);
+
+        if (!isset(static::$groupCache[$key])) {
+            static::$groupCache[$key] = Group::all()
+                ->filter(fn (Group $g) => static::normalizeName($g->name) === $key)
+                ->values()
+                ->all();
+        }
+
+        $matches = static::$groupCache[$key];
+
+        if (count($matches) === 0) {
+            static::$unmatchedGroups[$rawName] = true;
+            throw ValidationException::withMessages([
+                'group' => "Bacenta not found: {$rawName}",
+            ]);
+        }
+
+        if (count($matches) > 1) {
+            static::$ambiguousGroups[$rawName] = true;
+            throw ValidationException::withMessages([
+                'group' => "Ambiguous bacenta name: {$rawName}",
+            ]);
+        }
+
+        return $matches[0];
+    }
 
     public static function normalizeName(string $name): string
     {
@@ -22,18 +106,24 @@ class AttendanceSummaryImporter extends Importer
         return mb_strtolower($name, 'UTF-8');
     }
 
-    public static function getColumns(): array
-    {
-        return [];
-    }
-
-    public function resolveRecord(): ?AttendanceSummary
-    {
-        return new AttendanceSummary();
-    }
-
     public static function getCompletedNotificationBody(Import $import): string
     {
-        return number_format($import->successful_rows) . ' ' . str('row')->plural($import->successful_rows) . ' imported.';
+        $body = number_format($import->successful_rows) . ' ' . str('row')->plural($import->successful_rows) . ' imported.';
+
+        if ($failedRowsCount = $import->getFailedRowsCount()) {
+            $body .= ' ' . number_format($failedRowsCount) . ' failed.';
+        }
+
+        if (!empty(static::$unmatchedGroups)) {
+            $names = implode(', ', array_keys(static::$unmatchedGroups));
+            $body .= " Unmatched bacentas: {$names}.";
+        }
+
+        if (!empty(static::$ambiguousGroups)) {
+            $names = implode(', ', array_keys(static::$ambiguousGroups));
+            $body .= " Ambiguous bacenta names: {$names}.";
+        }
+
+        return $body;
     }
 }
