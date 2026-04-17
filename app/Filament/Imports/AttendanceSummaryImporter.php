@@ -71,6 +71,25 @@ class AttendanceSummaryImporter extends Importer
         ]);
     }
 
+    public function beforeSave(): void
+    {
+        /** @var AttendanceSummary $record */
+        $record = $this->record;
+
+        if (!$record->exists) {
+            return;
+        }
+
+        $record->attendances()->delete();
+        $record->nonMemberAttendances()->delete();
+
+        $record->visitor_count = 0;
+        $record->first_timer_count = 0;
+        $record->notes = null;
+        $record->image = null;
+        $record->submitted_by_leader_id = null;
+    }
+
     /**
      * Looks up a Group by normalized name. Throws ValidationException on
      * missing or ambiguous matches so Filament records a specific reason on
