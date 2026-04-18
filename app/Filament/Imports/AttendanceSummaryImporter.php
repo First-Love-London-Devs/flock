@@ -57,11 +57,13 @@ class AttendanceSummaryImporter extends Importer
     public function resolveRecord(): ?AttendanceSummary
     {
         $groupName = trim((string) ($this->data['group'] ?? ''));
-        $date = $this->data['date'] ?? null;
+        $rawDate = $this->data['date'] ?? null;
 
-        if ($groupName === '' || !$date) {
+        if ($groupName === '' || !$rawDate) {
             return null;
         }
+
+        $date = \Carbon\Carbon::parse($rawDate)->toDateString();
 
         $group = static::resolveGroup($groupName);
 
