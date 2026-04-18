@@ -16,7 +16,7 @@ return new class extends Migration
             $table->boolean('is_first_timer')->default(false);
             $table->timestamps();
 
-            $table->unique(['attendance_summary_id', 'non_member_id']);
+            $table->unique(['attendance_summary_id', 'non_member_id'], 'nma_summary_nonmember_unique');
         });
     }
 
