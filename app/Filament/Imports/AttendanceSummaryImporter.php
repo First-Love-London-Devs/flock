@@ -100,7 +100,9 @@ class AttendanceSummaryImporter extends Importer
         $key = static::normalizeName($rawName);
 
         if (!isset(static::$groupCache[$key])) {
-            static::$groupCache[$key] = Group::all()
+            static::$groupCache[$key] = Group::query()
+                ->whereHas('groupType', fn ($q) => $q->where('tracks_attendance', true))
+                ->get()
                 ->filter(fn (Group $g) => static::normalizeName($g->name) === $key)
                 ->values()
                 ->all();
