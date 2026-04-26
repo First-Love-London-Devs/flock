@@ -88,7 +88,7 @@ class AttendanceService
                     + collect($nonMemberAttendances)->where('is_first_timer', true)->count(),
             ]);
 
-            return $summary->fresh(['attendances', 'nonMemberAttendances.nonMember']);
+            return $summary->load('attendances', 'nonMemberAttendances.nonMember');
         });
     }
 
