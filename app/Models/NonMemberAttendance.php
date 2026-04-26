@@ -12,11 +12,13 @@ class NonMemberAttendance extends Model
         'non_member_id',
         'attended',
         'is_first_timer',
+        'is_new_convert',
     ];
 
     protected $casts = [
         'attended' => 'boolean',
         'is_first_timer' => 'boolean',
+        'is_new_convert' => 'boolean',
     ];
 
     public function summary(): BelongsTo
