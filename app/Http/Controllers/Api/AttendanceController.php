@@ -8,6 +8,7 @@ use App\Services\AttendanceService;
 use App\Services\LeaderScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
@@ -52,6 +53,12 @@ class AttendanceController extends Controller
                 'data' => $summary,
             ], 201);
         } catch (\Exception $e) {
+            Log::error('Attendance submit failed', [
+                'group_id' => $validated['group_id'] ?? null,
+                'date' => $validated['date'] ?? null,
+                'user_id' => $request->user()?->id,
+                'exception' => $e,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit attendance.',
