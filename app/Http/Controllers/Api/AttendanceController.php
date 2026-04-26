@@ -26,10 +26,12 @@ class AttendanceController extends Controller
             'attendances.*.attended' => 'required|boolean',
             'attendances.*.is_first_timer' => 'boolean',
             'attendances.*.is_visitor' => 'boolean',
+            'attendances.*.is_new_convert' => 'boolean',
             'non_member_attendances' => 'sometimes|array',
             'non_member_attendances.*.non_member_id' => 'required_with:non_member_attendances|exists:non_members,id',
             'non_member_attendances.*.attended' => 'boolean',
             'non_member_attendances.*.is_first_timer' => 'boolean',
+            'non_member_attendances.*.is_new_convert' => 'boolean',
         ]);
 
         if (!$this->scope->canAccessGroup($validated['group_id'])) {
@@ -70,6 +72,7 @@ class AttendanceController extends Controller
             'attendances.*.attended' => 'required|boolean',
             'attendances.*.is_first_timer' => 'boolean',
             'attendances.*.is_visitor' => 'boolean',
+            'attendances.*.is_new_convert' => 'boolean',
         ]);
 
         try {
