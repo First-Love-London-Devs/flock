@@ -51,9 +51,9 @@ class AttendanceService
         });
     }
 
-    public function updateAttendance(int $summaryId, array $attendances): AttendanceSummary
+    public function updateAttendance(int $summaryId, array $attendances, array $nonMemberAttendances = []): AttendanceSummary
     {
-        return DB::transaction(function () use ($summaryId, $attendances) {
+        return DB::transaction(function () use ($summaryId, $attendances, $nonMemberAttendances) {
             $summary = AttendanceSummary::findOrFail($summaryId);
             $summary->attendances()->delete();
 
@@ -68,13 +68,27 @@ class AttendanceService
                 ]);
             }
 
+            $summary->nonMemberAttendances()->delete();
+
+            foreach ($nonMemberAttendances as $nma) {
+                NonMemberAttendance::create([
+                    'attendance_summary_id' => $summary->id,
+                    'non_member_id' => $nma['non_member_id'],
+                    'attended' => $nma['attended'] ?? true,
+                    'is_first_timer' => $nma['is_first_timer'] ?? false,
+                    'is_new_convert' => $nma['is_new_convert'] ?? false,
+                ]);
+            }
+
+            $nonMemberAttendedCount = collect($nonMemberAttendances)->where('attended', true)->count();
             $summary->update([
-                'total_attendance' => collect($attendances)->where('attended', true)->count(),
-                'visitor_count' => collect($attendances)->where('is_visitor', true)->count(),
-                'first_timer_count' => collect($attendances)->where('is_first_timer', true)->count(),
+                'total_attendance' => collect($attendances)->where('attended', true)->count() + $nonMemberAttendedCount,
+                'visitor_count' => collect($attendances)->where('is_visitor', true)->count() + $nonMemberAttendedCount,
+                'first_timer_count' => collect($attendances)->where('is_first_timer', true)->count()
+                    + collect($nonMemberAttendances)->where('is_first_timer', true)->count(),
             ]);
 
-            return $summary->fresh('attendances');
+            return $summary->fresh(['attendances', 'nonMemberAttendances.nonMember']);
         });
     }
 
