@@ -33,6 +33,7 @@ class AttendanceService
                     'attended' => $attendance['attended'] ?? false,
                     'is_first_timer' => $attendance['is_first_timer'] ?? false,
                     'is_visitor' => $attendance['is_visitor'] ?? false,
+                    'is_new_convert' => $attendance['is_new_convert'] ?? false,
                 ]);
             }
 
@@ -42,6 +43,7 @@ class AttendanceService
                     'non_member_id' => $nma['non_member_id'],
                     'attended' => $nma['attended'] ?? true,
                     'is_first_timer' => $nma['is_first_timer'] ?? false,
+                    'is_new_convert' => $nma['is_new_convert'] ?? false,
                 ]);
             }
 
@@ -62,6 +64,7 @@ class AttendanceService
                     'attended' => $attendance['attended'] ?? false,
                     'is_first_timer' => $attendance['is_first_timer'] ?? false,
                     'is_visitor' => $attendance['is_visitor'] ?? false,
+                    'is_new_convert' => $attendance['is_new_convert'] ?? false,
                 ]);
             }
 
