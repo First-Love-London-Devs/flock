@@ -35,6 +35,11 @@ class AttendanceSummaryResource extends Resource
                     ->numeric(),
                 Forms\Components\TextInput::make('first_timer_count')
                     ->numeric(),
+                Forms\Components\TextInput::make('new_convert_count')
+                    ->numeric()
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->formatStateUsing(fn ($record) => $record?->newConvertCount() ?? 0),
                 Forms\Components\Textarea::make('notes')
                     ->columnSpanFull(),
             ]);
@@ -54,6 +59,9 @@ class AttendanceSummaryResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('visitor_count'),
                 Tables\Columns\TextColumn::make('first_timer_count'),
+                Tables\Columns\TextColumn::make('new_convert_count')
+                    ->label('New converts')
+                    ->getStateUsing(fn ($record) => $record->newConvertCount()),
                 Tables\Columns\TextColumn::make('submittedBy.member.full_name')
                     ->label('Submitted By'),
             ])

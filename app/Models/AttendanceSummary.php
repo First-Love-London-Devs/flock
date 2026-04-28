@@ -43,6 +43,12 @@ class AttendanceSummary extends Model
         return $this->hasMany(NonMemberAttendance::class);
     }
 
+    public function newConvertCount(): int
+    {
+        return $this->attendances()->where('is_new_convert', true)->count()
+            + $this->nonMemberAttendances()->where('is_new_convert', true)->count();
+    }
+
     public function scopeForDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('date', [$startDate, $endDate]);
