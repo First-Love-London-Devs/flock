@@ -119,6 +119,16 @@ class ConstituencyAnalytics
         ];
     }
 
+    public function members(Group $constituency, int $perPage = 25): LengthAwarePaginator
+    {
+        $cellGroupIds = $this->cellGroupIdsFor($constituency);
+
+        return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $cellGroupIds))
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate($perPage);
+    }
+
     protected function cellGroupIdsFor(Group $constituency): array
     {
         return Group::where('parent_id', $constituency->id)

@@ -124,4 +124,36 @@ class ConstituencyAnalyticsTest extends TestCase
 
         $this->assertNull($this->service->groupDetail($constituencyA, $cellInB->id));
     }
+
+    public function test_members_returns_paginated_unique_members_across_constituency(): void
+    {
+        $constituency = $this->makeConstituency();
+        $cellA = $this->makeCellGroup($constituency);
+        $cellB = $this->makeCellGroup($constituency);
+
+        for ($i = 0; $i < 30; $i++) $this->makeMember($cellA);
+        for ($i = 0; $i < 20; $i++) $this->makeMember($cellB);
+
+        $page1 = $this->service->members($constituency, perPage: 25);
+
+        $this->assertSame(50, $page1->total());
+        $this->assertSame(25, $page1->perPage());
+        $this->assertCount(25, $page1->items());
+        $this->assertSame(1, $page1->currentPage());
+    }
+
+    public function test_members_excludes_members_in_groups_outside_constituency(): void
+    {
+        $constituencyA = $this->makeConstituency('A');
+        $constituencyB = $this->makeConstituency('B');
+        $cellA = $this->makeCellGroup($constituencyA);
+        $cellB = $this->makeCellGroup($constituencyB);
+
+        $this->makeMember($cellA);
+        $this->makeMember($cellB);
+
+        $page = $this->service->members($constituencyA);
+
+        $this->assertSame(1, $page->total());
+    }
 }
