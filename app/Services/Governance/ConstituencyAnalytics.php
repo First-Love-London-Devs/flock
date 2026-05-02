@@ -44,6 +44,42 @@ class ConstituencyAnalytics
         ];
     }
 
+    public function groups(Group $constituency): array
+    {
+        [$weekStart, $weekEnd] = $this->currentWeekBounds();
+
+        $cellGroups = Group::where('parent_id', $constituency->id)
+            ->where('is_active', true)
+            ->with(['leader.member'])
+            ->withCount('members')
+            ->get();
+
+        $cellGroupIds = $cellGroups->pluck('id')->all();
+        $thisWeek = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->whereBetween('date', [$weekStart, $weekEnd])
+            ->get()
+            ->groupBy('group_id');
+
+        return $cellGroups->map(function ($g) use ($thisWeek) {
+            $rows = $thisWeek->get($g->id, collect());
+            $sundayRow = $rows->first(fn ($r) => Carbon::parse($r->date)->isSunday());
+            $midweekRow = $rows->first(fn ($r) => !Carbon::parse($r->date)->isSunday());
+
+            $leaderMember = $g->leader?->member;
+
+            return [
+                'id' => $g->id,
+                'name' => $g->name,
+                'members_count' => $g->members_count,
+                'leader_name' => $leaderMember ? trim($leaderMember->first_name . ' ' . $leaderMember->last_name) : null,
+                'sunday_submitted' => (bool) $sundayRow,
+                'midweek_submitted' => (bool) $midweekRow,
+                'latest_sunday_attendance' => $sundayRow?->total_attendance,
+                'latest_midweek_attendance' => $midweekRow?->total_attendance,
+            ];
+        })->all();
+    }
+
     protected function cellGroupIdsFor(Group $constituency): array
     {
         return Group::where('parent_id', $constituency->id)
