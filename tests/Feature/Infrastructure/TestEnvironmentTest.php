@@ -23,4 +23,11 @@ class TestEnvironmentTest extends TestCase
         $this->assertNotNull($group->id);
         $this->assertNotNull($group->group_type_id);
     }
+
+    public function test_leader_factory_creates_with_member(): void
+    {
+        $leader = \App\Models\Leader::factory()->create();
+        $this->assertNotNull($leader->member);
+        $this->assertNotNull($leader->member->first_name);
+    }
 }
