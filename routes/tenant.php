@@ -85,5 +85,15 @@ Route::middleware([
             Route::get('members',       [App\Http\Controllers\Api\GovernorController::class, 'members']);
             Route::get('attendance',    [App\Http\Controllers\Api\GovernorController::class, 'attendance']);
         });
+
+        Route::prefix('bishop')->middleware([\App\Http\Middleware\CheckRole::class . ':bishop'])->group(function () {
+            Route::get('governors',  [App\Http\Controllers\Api\BishopController::class, 'governors']);
+            Route::get('attendance', [App\Http\Controllers\Api\BishopController::class, 'attendance']);
+            Route::get('members',    [App\Http\Controllers\Api\BishopController::class, 'members']);
+            Route::get('governors/{govId}/dashboard',          [App\Http\Controllers\Api\BishopController::class, 'governorDashboard'])->whereNumber('govId');
+            Route::get('governors/{govId}/groups',             [App\Http\Controllers\Api\BishopController::class, 'governorGroups'])->whereNumber('govId');
+            Route::get('governors/{govId}/groups/{groupId}',   [App\Http\Controllers\Api\BishopController::class, 'groupDetail'])->whereNumber('govId')->whereNumber('groupId');
+            Route::get('governors/{govId}/attendance',         [App\Http\Controllers\Api\BishopController::class, 'governorAttendance'])->whereNumber('govId');
+        });
     });
 });
