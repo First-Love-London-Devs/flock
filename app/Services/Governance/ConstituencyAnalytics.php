@@ -131,34 +131,74 @@ class ConstituencyAnalytics
 
     public function attendance(Group $constituency, CarbonPeriod $range): array
     {
-        $cellGroupIds = $this->cellGroupIdsFor($constituency);
-        $start = Carbon::parse($range->getStartDate())->toDateString();
-        $end = Carbon::parse($range->getEndDate())->endOfDay()->toDateTimeString();
+        return $this->attendanceForCellGroups($this->cellGroupIdsFor($constituency), $range);
+    }
 
-        $rows = AttendanceSummary::whereIn('group_id', $cellGroupIds)
-            ->whereBetween('date', [$start, $end])
-            ->orderBy('date')
+    public function tenantWideAttendance(CarbonPeriod $range): array
+    {
+        $cellGroupIds = $this->allConstituencyCellGroupIds();
+        return $this->attendanceForCellGroups($cellGroupIds, $range);
+    }
+
+    public function tenantWideMembers(int $perPage = 25): LengthAwarePaginator
+    {
+        $cellGroupIds = $this->allConstituencyCellGroupIds();
+
+        return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $cellGroupIds))
+            ->orderBy('last_name')->orderBy('first_name')
+            ->paginate($perPage);
+    }
+
+    public function constituencySummaries(): array
+    {
+        [$weekStart, $weekEnd] = $this->currentWeekBounds();
+        $constituencyTypeId = \App\Models\GroupType::where('slug', 'constituency')->value('id');
+        if (!$constituencyTypeId) return [];
+
+        $constituencies = Group::where('group_type_id', $constituencyTypeId)
+            ->where('is_active', true)
             ->get();
 
-        $byDate = $rows->groupBy(fn ($r) => Carbon::parse($r->date)->toDateString());
+        return $constituencies->map(function (Group $c) use ($weekStart, $weekEnd) {
+            $cellGroupIds = $this->cellGroupIdsFor($c);
 
-        $series = $byDate->map(function ($dayRows, $date) {
-            $isSunday = Carbon::parse($date)->isSunday();
-            $sum = (int) $dayRows->sum('total_attendance');
+            $totalMembers = Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $cellGroupIds))->count();
+
+            $rows = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+                ->whereBetween('date', [$weekStart, $weekEnd])
+                ->get();
+
+            $sunday = (int) $rows->filter(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
+            $midweek = (int) $rows->reject(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
+
+            $governorRole = \App\Models\LeaderRole::where('group_id', $c->id)
+                ->where('is_active', true)
+                ->whereHas('roleDefinition', fn ($q) => $q->where('slug', 'governor'))
+                ->with('leader.member')
+                ->first();
+
+            $governor = null;
+            if ($governorRole && $governorRole->leader) {
+                $governor = [
+                    'id' => $governorRole->leader->id,
+                    'member' => [
+                        'id' => $governorRole->leader->member->id,
+                        'first_name' => $governorRole->leader->member->first_name,
+                        'last_name' => $governorRole->leader->member->last_name,
+                    ],
+                ];
+            }
+
             return [
-                'date' => $date,
-                'sunday' => $isSunday ? $sum : null,
-                'midweek' => $isSunday ? null : $sum,
+                'id' => $c->id,
+                'constituency_name' => $c->name,
+                'total_members' => $totalMembers,
+                'total_groups' => count($cellGroupIds),
+                'sunday_attendance' => $sunday,
+                'midweek_attendance' => $midweek,
+                'governor' => $governor,
             ];
-        })->values()->all();
-
-        $totalSunday = (int) $rows->filter(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
-        $totalMidweek = (int) $rows->reject(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
-
-        return [
-            'series' => $series,
-            'totals' => ['sunday' => $totalSunday, 'midweek' => $totalMidweek],
-        ];
+        })->all();
     }
 
     protected function cellGroupIdsFor(Group $constituency): array
@@ -173,5 +213,42 @@ class ConstituencyAnalytics
     {
         $start = Carbon::now()->startOfWeek();
         return [$start->toDateString(), $start->copy()->endOfWeek()->endOfDay()->toDateTimeString()];
+    }
+
+    protected function allConstituencyCellGroupIds(): array
+    {
+        $constituencyTypeId = \App\Models\GroupType::where('slug', 'constituency')->value('id');
+        if (!$constituencyTypeId) return [];
+
+        return Group::whereIn('parent_id', function ($q) use ($constituencyTypeId) {
+            $q->select('id')->from('groups')->where('group_type_id', $constituencyTypeId);
+        })
+        ->where('is_active', true)
+        ->pluck('id')
+        ->all();
+    }
+
+    protected function attendanceForCellGroups(array $cellGroupIds, CarbonPeriod $range): array
+    {
+        $start = Carbon::parse($range->getStartDate())->toDateString();
+        $end = Carbon::parse($range->getEndDate())->endOfDay()->toDateTimeString();
+
+        $rows = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->whereBetween('date', [$start, $end])
+            ->orderBy('date')
+            ->get();
+
+        $byDate = $rows->groupBy(fn ($r) => Carbon::parse($r->date)->toDateString());
+
+        $series = $byDate->map(function ($dayRows, $date) {
+            $isSunday = Carbon::parse($date)->isSunday();
+            $sum = (int) $dayRows->sum('total_attendance');
+            return ['date' => $date, 'sunday' => $isSunday ? $sum : null, 'midweek' => $isSunday ? null : $sum];
+        })->values()->all();
+
+        $totalSunday = (int) $rows->filter(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
+        $totalMidweek = (int) $rows->reject(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
+
+        return ['series' => $series, 'totals' => ['sunday' => $totalSunday, 'midweek' => $totalMidweek]];
     }
 }

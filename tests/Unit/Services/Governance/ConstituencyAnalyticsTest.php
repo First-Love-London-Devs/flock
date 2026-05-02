@@ -186,4 +186,88 @@ class ConstituencyAnalyticsTest extends TestCase
         $this->assertSame(20, $byDate['2026-04-08']['midweek']);
         $this->assertSame(60, $byDate['2026-04-12']['sunday']);
     }
+
+    public function test_tenant_wide_attendance_aggregates_across_all_constituencies(): void
+    {
+        $constA = $this->makeConstituency('A');
+        $constB = $this->makeConstituency('B');
+        $cellA = $this->makeCellGroup($constA);
+        $cellB = $this->makeCellGroup($constB);
+
+        $sunday = Carbon::create(2026, 4, 5);
+        $this->submitAttendance($cellA, $sunday, count: 30);
+        $this->submitAttendance($cellB, $sunday, count: 40);
+
+        $range = CarbonPeriod::create(Carbon::create(2026, 4, 1), Carbon::create(2026, 4, 30));
+
+        $result = $this->service->tenantWideAttendance($range);
+
+        $this->assertSame(70, $result['totals']['sunday']);
+        $this->assertSame(0, $result['totals']['midweek']);
+    }
+
+    public function test_tenant_wide_members_paginates_across_all_constituencies(): void
+    {
+        $constA = $this->makeConstituency('A');
+        $constB = $this->makeConstituency('B');
+        $cellA = $this->makeCellGroup($constA);
+        $cellB = $this->makeCellGroup($constB);
+
+        for ($i = 0; $i < 10; $i++) $this->makeMember($cellA);
+        for ($i = 0; $i < 10; $i++) $this->makeMember($cellB);
+
+        $page = $this->service->tenantWideMembers(perPage: 25);
+
+        $this->assertSame(20, $page->total());
+    }
+
+    public function test_tenant_wide_members_excludes_orphan_members(): void
+    {
+        $constA = $this->makeConstituency('A');
+        $cellA = $this->makeCellGroup($constA);
+        $this->makeMember($cellA);
+
+        // Member in a group not parented to a Constituency
+        $orphanCell = \App\Models\Group::factory()->create([
+            'group_type_id' => $this->cellGroupType->id,
+            'parent_id' => null,
+        ]);
+        $this->makeMember($orphanCell);
+
+        $page = $this->service->tenantWideMembers();
+
+        $this->assertSame(1, $page->total());
+    }
+
+    public function test_constituency_summaries_returns_one_row_per_constituency(): void
+    {
+        $constA = $this->makeConstituency('North');
+        $constB = $this->makeConstituency('South');
+
+        $cellA1 = $this->makeCellGroup($constA);
+        $cellA2 = $this->makeCellGroup($constA);
+        $cellB1 = $this->makeCellGroup($constB);
+
+        for ($i = 0; $i < 5; $i++) $this->makeMember($cellA1);
+        for ($i = 0; $i < 3; $i++) $this->makeMember($cellA2);
+        for ($i = 0; $i < 7; $i++) $this->makeMember($cellB1);
+
+        $governorA = $this->makeGovernor($constA);
+        $governorA->member->update(['first_name' => 'Samuel', 'last_name' => 'Kofi']);
+        // constB has no governor assigned
+
+        $sunday = Carbon::now()->startOfWeek()->next('Sunday');
+        $this->submitAttendance($cellA1, $sunday, count: 4);
+        $this->submitAttendance($cellB1, $sunday, count: 6);
+
+        $summaries = collect($this->service->constituencySummaries())->keyBy('constituency_name');
+
+        $this->assertSame(8, $summaries['North']['total_members']);
+        $this->assertSame(2, $summaries['North']['total_groups']);
+        $this->assertSame(4, $summaries['North']['sunday_attendance']);
+        $this->assertSame('Samuel', $summaries['North']['governor']['member']['first_name']);
+
+        $this->assertSame(7, $summaries['South']['total_members']);
+        $this->assertNull($summaries['South']['governor']);
+    }
 }
