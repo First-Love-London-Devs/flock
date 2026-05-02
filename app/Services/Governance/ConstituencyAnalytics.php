@@ -6,7 +6,7 @@ use App\Models\AttendanceSummary;
 use App\Models\Group;
 use App\Models\Member;
 use Carbon\Carbon;
-use Carbon\CarbonInterval;
+use Carbon\CarbonPeriod;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class ConstituencyAnalytics
@@ -127,6 +127,38 @@ class ConstituencyAnalytics
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->paginate($perPage);
+    }
+
+    public function attendance(Group $constituency, CarbonPeriod $range): array
+    {
+        $cellGroupIds = $this->cellGroupIdsFor($constituency);
+        $start = Carbon::parse($range->getStartDate())->toDateString();
+        $end = Carbon::parse($range->getEndDate())->endOfDay()->toDateTimeString();
+
+        $rows = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->whereBetween('date', [$start, $end])
+            ->orderBy('date')
+            ->get();
+
+        $byDate = $rows->groupBy(fn ($r) => Carbon::parse($r->date)->toDateString());
+
+        $series = $byDate->map(function ($dayRows, $date) {
+            $isSunday = Carbon::parse($date)->isSunday();
+            $sum = (int) $dayRows->sum('total_attendance');
+            return [
+                'date' => $date,
+                'sunday' => $isSunday ? $sum : null,
+                'midweek' => $isSunday ? null : $sum,
+            ];
+        })->values()->all();
+
+        $totalSunday = (int) $rows->filter(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
+        $totalMidweek = (int) $rows->reject(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance');
+
+        return [
+            'series' => $series,
+            'totals' => ['sunday' => $totalSunday, 'midweek' => $totalMidweek],
+        ];
     }
 
     protected function cellGroupIdsFor(Group $constituency): array

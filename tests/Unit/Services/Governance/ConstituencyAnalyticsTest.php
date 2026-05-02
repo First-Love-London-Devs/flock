@@ -4,6 +4,7 @@ namespace Tests\Unit\Services\Governance;
 
 use App\Services\Governance\ConstituencyAnalytics;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Tests\Concerns\BuildsGovernanceFixtures;
 use Tests\TestCase;
 
@@ -155,5 +156,34 @@ class ConstituencyAnalyticsTest extends TestCase
         $page = $this->service->members($constituencyA);
 
         $this->assertSame(1, $page->total());
+    }
+
+    public function test_attendance_returns_series_summed_across_groups_split_by_day_of_week(): void
+    {
+        $constituency = $this->makeConstituency();
+        $cellA = $this->makeCellGroup($constituency);
+        $cellB = $this->makeCellGroup($constituency);
+
+        $sunday1 = Carbon::create(2026, 4, 5);   // Sunday
+        $wed1    = Carbon::create(2026, 4, 8);   // Wednesday
+        $sunday2 = Carbon::create(2026, 4, 12);  // Sunday
+
+        $this->submitAttendance($cellA, $sunday1, count: 50);
+        $this->submitAttendance($cellB, $sunday1, count: 30);
+        $this->submitAttendance($cellA, $wed1, count: 20);
+        $this->submitAttendance($cellA, $sunday2, count: 60);
+
+        $range = CarbonPeriod::create(Carbon::create(2026, 4, 1), Carbon::create(2026, 4, 30));
+
+        $result = $this->service->attendance($constituency, $range);
+
+        $this->assertSame(['sunday' => 140, 'midweek' => 20], $result['totals']);
+
+        $byDate = collect($result['series'])->keyBy('date');
+        $this->assertSame(80, $byDate['2026-04-05']['sunday']);
+        $this->assertNull($byDate['2026-04-05']['midweek']);
+        $this->assertNull($byDate['2026-04-08']['sunday']);
+        $this->assertSame(20, $byDate['2026-04-08']['midweek']);
+        $this->assertSame(60, $byDate['2026-04-12']['sunday']);
     }
 }
