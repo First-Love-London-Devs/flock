@@ -84,6 +84,7 @@ class ConstituencyAnalytics
     {
         $group = Group::where('id', $groupId)
             ->where('parent_id', $constituency->id)
+            ->where('is_active', true)
             ->with(['leader.member', 'members'])
             ->withCount('members')
             ->first();
@@ -211,6 +212,8 @@ class ConstituencyAnalytics
 
     protected function currentWeekBounds(): array
     {
+        // Upper bound is end-of-day datetime so SQLite (which stores Eloquent date casts
+        // with a 00:00:00 time) still includes rows on the final day in whereBetween.
         $start = Carbon::now()->startOfWeek();
         return [$start->toDateString(), $start->copy()->endOfWeek()->endOfDay()->toDateTimeString()];
     }
@@ -230,6 +233,8 @@ class ConstituencyAnalytics
 
     protected function attendanceForCellGroups(array $cellGroupIds, CarbonPeriod $range): array
     {
+        // End-of-day on the upper bound so SQLite (date casts stored with 00:00:00 time)
+        // includes rows on the final day in whereBetween.
         $start = Carbon::parse($range->getStartDate())->toDateString();
         $end = Carbon::parse($range->getEndDate())->endOfDay()->toDateTimeString();
 
