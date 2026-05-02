@@ -40,7 +40,7 @@ trait BuildsGovernanceFixtures
     protected function makeCellGroup(Group $constituency, ?Leader $leader = null, string $name = null): Group
     {
         return Group::factory()->create([
-            'name' => $name ?? 'Group ' . $this->faker->word,
+            'name' => $name ?? 'Group ' . fake()->word(),
             'group_type_id' => $this->cellGroupType->id,
             'parent_id' => $constituency->id,
             'leader_id' => $leader?->id,
