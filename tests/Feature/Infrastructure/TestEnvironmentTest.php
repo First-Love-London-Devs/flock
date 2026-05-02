@@ -16,4 +16,11 @@ class TestEnvironmentTest extends TestCase
         $this->assertTrue(Schema::hasTable('role_definitions'));
         $this->assertTrue(Schema::hasTable('leader_roles'));
     }
+
+    public function test_group_factory_creates_record(): void
+    {
+        $group = \App\Models\Group::factory()->create();
+        $this->assertNotNull($group->id);
+        $this->assertNotNull($group->group_type_id);
+    }
 }
