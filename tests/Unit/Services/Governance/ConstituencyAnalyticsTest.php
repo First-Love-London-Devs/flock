@@ -92,4 +92,36 @@ class ConstituencyAnalyticsTest extends TestCase
         $this->assertNull($groups[0]['latest_midweek_attendance']);
         $this->assertNull($groups[0]['leader_name']);
     }
+
+    public function test_group_detail_returns_group_fields_and_member_list(): void
+    {
+        $constituency = $this->makeConstituency();
+        $cell = $this->makeCellGroup($constituency, name: 'Grace Chapel');
+
+        $alice = $this->makeMember($cell);
+        $alice->update(['first_name' => 'Alice', 'last_name' => 'Mensah', 'is_active' => true]);
+        $bob = $this->makeMember($cell);
+        $bob->update(['first_name' => 'Bob', 'last_name' => 'Tetteh', 'is_active' => false]);
+
+        $detail = $this->service->groupDetail($constituency, $cell->id);
+
+        $this->assertSame('Grace Chapel', $detail['name']);
+        $this->assertCount(2, $detail['members']);
+
+        $aliceRow = collect($detail['members'])->firstWhere('first_name', 'Alice');
+        $this->assertSame('Mensah', $aliceRow['last_name']);
+        $this->assertTrue($aliceRow['is_active']);
+
+        $bobRow = collect($detail['members'])->firstWhere('first_name', 'Bob');
+        $this->assertFalse($bobRow['is_active']);
+    }
+
+    public function test_group_detail_returns_null_when_group_not_in_constituency(): void
+    {
+        $constituencyA = $this->makeConstituency('A');
+        $constituencyB = $this->makeConstituency('B');
+        $cellInB = $this->makeCellGroup($constituencyB);
+
+        $this->assertNull($this->service->groupDetail($constituencyA, $cellInB->id));
+    }
 }
