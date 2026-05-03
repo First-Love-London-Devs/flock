@@ -115,10 +115,19 @@ class GovernorControllerTest extends TestCase
         $sunday = Carbon::create(2026, 4, 5);
         $this->submitAttendance($cell, $sunday, 50);
 
-        $this->actingAs($governor, 'sanctum')
-            ->getJson('/api/v1/governor/attendance?from=2026-04-01&to=2026-04-30')
+        $r = $this->actingAs($governor, 'sanctum')
+            ->getJson('/api/v1/governor/attendance?service_type=sunday&date=2026-04-05')
             ->assertOk()
-            ->assertJsonStructure(['data' => ['series', 'totals' => ['sunday', 'midweek']]]);
+            ->assertJsonStructure(['data' => [
+                'date', 'service_type',
+                'total_attendance', 'member_count', 'visitor_count',
+                'groups_submitted', 'total_groups',
+                'by_group',
+            ]]);
+
+        $this->assertSame('2026-04-05', $r->json('data.date'));
+        $this->assertSame('sunday', $r->json('data.service_type'));
+        $this->assertSame(50, $r->json('data.total_attendance'));
     }
 
     public function test_misconfigured_governor_with_null_group_id_returns_403(): void

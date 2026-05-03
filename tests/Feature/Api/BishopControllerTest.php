@@ -132,9 +132,14 @@ class BishopControllerTest extends TestCase
         $governor = $this->makeGovernor($const);
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$governor->id}/attendance?from=2026-04-01&to=2026-04-30")
+            ->getJson("/api/v1/bishop/governors/{$governor->id}/attendance?service_type=sunday&date=2026-04-05")
             ->assertOk()
-            ->assertJsonStructure(['data' => ['series', 'totals']]);
+            ->assertJsonStructure(['data' => [
+                'date', 'service_type',
+                'total_attendance', 'member_count', 'visitor_count',
+                'groups_submitted', 'total_groups',
+                'by_group',
+            ]]);
     }
 
     public function test_group_detail_drilldown(): void

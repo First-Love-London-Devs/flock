@@ -48,7 +48,8 @@ class BishopController extends Controller
     {
         return $this->ok($this->service->attendance(
             $this->constituencyForGovernor($govId),
-            $this->dateRange($request),
+            $this->serviceType($request),
+            $this->serviceDate($request),
         ));
     }
 
@@ -81,6 +82,17 @@ class BishopController extends Controller
         $from = $request->query('from') ? Carbon::parse($request->query('from')) : Carbon::now()->startOfWeek();
         $to = $request->query('to') ? Carbon::parse($request->query('to')) : Carbon::now()->endOfWeek();
         return CarbonPeriod::create($from, $to);
+    }
+
+    protected function serviceType(Request $request): string
+    {
+        return $request->query('service_type') === 'midweek' ? 'midweek' : 'sunday';
+    }
+
+    protected function serviceDate(Request $request): ?Carbon
+    {
+        $value = $request->query('date');
+        return $value ? Carbon::parse($value) : null;
     }
 
     protected function ok(mixed $data): JsonResponse

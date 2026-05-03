@@ -130,9 +130,49 @@ class ConstituencyAnalytics
             ->paginate($perPage);
     }
 
-    public function attendance(Group $constituency, CarbonPeriod $range): array
+    public function attendance(Group $constituency, string $serviceType, ?Carbon $date = null): array
     {
-        return $this->attendanceForCellGroups($this->cellGroupIdsFor($constituency), $range);
+        $date = ($date ?? Carbon::today())->copy()->startOfDay();
+        $cellGroups = Group::where('parent_id', $constituency->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $rows = AttendanceSummary::whereIn('group_id', $cellGroups->pluck('id'))
+            ->whereDate('date', $date->toDateString())
+            ->get()
+            ->keyBy('group_id');
+
+        $rowMatchesService = function (AttendanceSummary $r) use ($serviceType): bool {
+            $isSunday = Carbon::parse($r->date)->isSunday();
+            return $serviceType === 'sunday' ? $isSunday : !$isSunday;
+        };
+
+        $byGroup = $cellGroups->map(function (Group $g) use ($rows, $rowMatchesService) {
+            $row = $rows->get($g->id);
+            $submitted = $row && $rowMatchesService($row);
+            return [
+                'group_id' => $g->id,
+                'group_name' => $g->name,
+                'attendance' => $submitted ? (int) $row->total_attendance : null,
+                'submitted' => $submitted,
+            ];
+        });
+
+        $matched = $rows->filter($rowMatchesService);
+        $totalAttendance = (int) $matched->sum('total_attendance');
+        $visitorCount = (int) $matched->sum('visitor_count');
+
+        return [
+            'date' => $date->toDateString(),
+            'service_type' => $serviceType,
+            'total_attendance' => $totalAttendance,
+            'member_count' => max(0, $totalAttendance - $visitorCount),
+            'visitor_count' => $visitorCount,
+            'groups_submitted' => $matched->count(),
+            'total_groups' => $cellGroups->count(),
+            'by_group' => $byGroup->values()->all(),
+        ];
     }
 
     public function tenantWideAttendance(CarbonPeriod $range): array

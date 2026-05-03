@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services\Governance;
 
+use App\Models\AttendanceSummary;
 use App\Services\Governance\ConstituencyAnalytics;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -158,33 +159,73 @@ class ConstituencyAnalyticsTest extends TestCase
         $this->assertSame(1, $page->total());
     }
 
-    public function test_attendance_returns_series_summed_across_groups_split_by_day_of_week(): void
+    public function test_attendance_returns_overview_for_specific_service_date(): void
     {
         $constituency = $this->makeConstituency();
-        $cellA = $this->makeCellGroup($constituency);
-        $cellB = $this->makeCellGroup($constituency);
+        $cellA = $this->makeCellGroup($constituency, name: 'Alpha');
+        $cellB = $this->makeCellGroup($constituency, name: 'Bravo');
+        $cellC = $this->makeCellGroup($constituency, name: 'Charlie');
 
-        $sunday1 = Carbon::create(2026, 4, 5);   // Sunday
-        $wed1    = Carbon::create(2026, 4, 8);   // Wednesday
-        $sunday2 = Carbon::create(2026, 4, 12);  // Sunday
+        $sunday = Carbon::create(2026, 4, 5);
 
-        $this->submitAttendance($cellA, $sunday1, count: 50);
-        $this->submitAttendance($cellB, $sunday1, count: 30);
-        $this->submitAttendance($cellA, $wed1, count: 20);
-        $this->submitAttendance($cellA, $sunday2, count: 60);
+        AttendanceSummary::factory()->create([
+            'group_id' => $cellA->id,
+            'date' => $sunday->toDateString(),
+            'total_attendance' => 50,
+            'visitor_count' => 5,
+        ]);
+        AttendanceSummary::factory()->create([
+            'group_id' => $cellB->id,
+            'date' => $sunday->toDateString(),
+            'total_attendance' => 30,
+            'visitor_count' => 0,
+        ]);
+        // cellC: did not submit
 
-        $range = CarbonPeriod::create(Carbon::create(2026, 4, 1), Carbon::create(2026, 4, 30));
+        $result = $this->service->attendance($constituency, 'sunday', $sunday);
 
-        $result = $this->service->attendance($constituency, $range);
+        $this->assertSame('2026-04-05', $result['date']);
+        $this->assertSame('sunday', $result['service_type']);
+        $this->assertSame(80, $result['total_attendance']);
+        $this->assertSame(5, $result['visitor_count']);
+        $this->assertSame(75, $result['member_count']);
+        $this->assertSame(2, $result['groups_submitted']);
+        $this->assertSame(3, $result['total_groups']);
 
-        $this->assertSame(['sunday' => 140, 'midweek' => 20], $result['totals']);
+        $byGroup = collect($result['by_group'])->keyBy('group_name');
+        $this->assertSame(50, $byGroup['Alpha']['attendance']);
+        $this->assertTrue($byGroup['Alpha']['submitted']);
+        $this->assertNull($byGroup['Charlie']['attendance']);
+        $this->assertFalse($byGroup['Charlie']['submitted']);
+    }
 
-        $byDate = collect($result['series'])->keyBy('date');
-        $this->assertSame(80, $byDate['2026-04-05']['sunday']);
-        $this->assertNull($byDate['2026-04-05']['midweek']);
-        $this->assertNull($byDate['2026-04-08']['sunday']);
-        $this->assertSame(20, $byDate['2026-04-08']['midweek']);
-        $this->assertSame(60, $byDate['2026-04-12']['sunday']);
+    public function test_attendance_filters_by_service_type_day_of_week(): void
+    {
+        $constituency = $this->makeConstituency();
+        $cell = $this->makeCellGroup($constituency);
+        $sunday = Carbon::create(2026, 4, 5);
+
+        $this->submitAttendance($cell, $sunday, count: 50);
+
+        // querying sunday on a sunday date with a sunday submission → matches
+        $sundayResult = $this->service->attendance($constituency, 'sunday', $sunday);
+        $this->assertSame(50, $sundayResult['total_attendance']);
+
+        // querying midweek for the same Sunday date should return zero
+        // (the row exists but isSunday() is true → not a midweek match)
+        $midweekResult = $this->service->attendance($constituency, 'midweek', $sunday);
+        $this->assertSame(0, $midweekResult['total_attendance']);
+        $this->assertSame(0, $midweekResult['groups_submitted']);
+    }
+
+    public function test_attendance_defaults_to_today_when_no_date_passed(): void
+    {
+        $constituency = $this->makeConstituency();
+        $this->makeCellGroup($constituency);
+
+        $result = $this->service->attendance($constituency, 'sunday');
+
+        $this->assertSame(Carbon::today()->toDateString(), $result['date']);
     }
 
     public function test_tenant_wide_attendance_aggregates_across_all_constituencies(): void

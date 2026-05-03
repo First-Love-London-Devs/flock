@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Services\Governance\ConstituencyAnalytics;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,7 +44,8 @@ class GovernorController extends Controller
     {
         return $this->ok($this->service->attendance(
             $this->constituency($request),
-            $this->dateRange($request),
+            $this->serviceType($request),
+            $this->serviceDate($request),
         ));
     }
 
@@ -64,11 +64,15 @@ class GovernorController extends Controller
         return $role->group;
     }
 
-    protected function dateRange(Request $request): CarbonPeriod
+    protected function serviceType(Request $request): string
     {
-        $from = $request->query('from') ? Carbon::parse($request->query('from')) : Carbon::now()->startOfWeek();
-        $to = $request->query('to') ? Carbon::parse($request->query('to')) : Carbon::now()->endOfWeek();
-        return CarbonPeriod::create($from, $to);
+        return $request->query('service_type') === 'midweek' ? 'midweek' : 'sunday';
+    }
+
+    protected function serviceDate(Request $request): ?Carbon
+    {
+        $value = $request->query('date');
+        return $value ? Carbon::parse($value) : null;
     }
 
     protected function ok(mixed $data): JsonResponse
