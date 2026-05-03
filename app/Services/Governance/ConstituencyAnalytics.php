@@ -193,10 +193,10 @@ class ConstituencyAnalytics
     public function constituencySummaries(): array
     {
         [$weekStart, $weekEnd] = $this->currentWeekBounds();
-        $constituencyTypeId = \App\Models\GroupType::where('slug', 'constituency')->value('id');
-        if (!$constituencyTypeId) return [];
+        $constituencyTypeIds = $this->constituencyGroupTypeIds();
+        if ($constituencyTypeIds->isEmpty()) return [];
 
-        $constituencies = Group::where('group_type_id', $constituencyTypeId)
+        $constituencies = Group::whereIn('group_type_id', $constituencyTypeIds)
             ->where('is_active', true)
             ->get();
 
@@ -260,15 +260,20 @@ class ConstituencyAnalytics
 
     protected function allConstituencyCellGroupIds(): array
     {
-        $constituencyTypeId = \App\Models\GroupType::where('slug', 'constituency')->value('id');
-        if (!$constituencyTypeId) return [];
+        $constituencyTypeIds = $this->constituencyGroupTypeIds();
+        if ($constituencyTypeIds->isEmpty()) return [];
 
-        return Group::whereIn('parent_id', function ($q) use ($constituencyTypeId) {
-            $q->select('id')->from('groups')->where('group_type_id', $constituencyTypeId);
+        return Group::whereIn('parent_id', function ($q) use ($constituencyTypeIds) {
+            $q->select('id')->from('groups')->whereIn('group_type_id', $constituencyTypeIds);
         })
         ->where('is_active', true)
         ->pluck('id')
         ->all();
+    }
+
+    protected function constituencyGroupTypeIds(): \Illuminate\Support\Collection
+    {
+        return \App\Models\GroupType::whereIn('slug', ['constituency', 'governor'])->pluck('id');
     }
 
     protected function attendanceForCellGroups(array $cellGroupIds, CarbonPeriod $range): array
