@@ -94,21 +94,20 @@ class BishopControllerTest extends TestCase
     {
         $bishop = $this->makeBishop();
         $const = $this->makeConstituency();
-        $governor = $this->makeGovernor($const);
+        $this->makeGovernor($const);
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$governor->id}/dashboard")
+            ->getJson("/api/v1/bishop/governors/{$const->id}/dashboard")
             ->assertOk()
             ->assertJsonStructure(['data' => ['total_members', 'total_groups']]);
     }
 
-    public function test_governor_drilldown_404s_for_non_governor_id(): void
+    public function test_governor_drilldown_404s_for_unknown_constituency_id(): void
     {
         $bishop = $this->makeBishop();
-        $randomLeader = \App\Models\Leader::factory()->create();
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$randomLeader->id}/dashboard")
+            ->getJson('/api/v1/bishop/governors/999999/dashboard')
             ->assertStatus(404);
     }
 
@@ -116,11 +115,11 @@ class BishopControllerTest extends TestCase
     {
         $bishop = $this->makeBishop();
         $const = $this->makeConstituency();
-        $governor = $this->makeGovernor($const);
+        $this->makeGovernor($const);
         $this->makeCellGroup($const);
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$governor->id}/groups")
+            ->getJson("/api/v1/bishop/governors/{$const->id}/groups")
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
@@ -129,10 +128,10 @@ class BishopControllerTest extends TestCase
     {
         $bishop = $this->makeBishop();
         $const = $this->makeConstituency();
-        $governor = $this->makeGovernor($const);
+        $this->makeGovernor($const);
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$governor->id}/attendance?service_type=sunday&date=2026-04-05")
+            ->getJson("/api/v1/bishop/governors/{$const->id}/attendance?service_type=sunday&date=2026-04-05")
             ->assertOk()
             ->assertJsonStructure(['data' => [
                 'date', 'service_type',
@@ -146,26 +145,25 @@ class BishopControllerTest extends TestCase
     {
         $bishop = $this->makeBishop();
         $const = $this->makeConstituency();
-        $governor = $this->makeGovernor($const);
+        $this->makeGovernor($const);
         $cell = $this->makeCellGroup($const);
         $this->makeMember($cell);
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$governor->id}/groups/{$cell->id}")
+            ->getJson("/api/v1/bishop/governors/{$const->id}/groups/{$cell->id}")
             ->assertOk()
             ->assertJsonStructure(['data' => ['id', 'name', 'members']]);
     }
 
-    public function test_group_detail_drilldown_404s_for_group_outside_governor_constituency(): void
+    public function test_group_detail_drilldown_404s_for_group_outside_constituency(): void
     {
         $bishop = $this->makeBishop();
         $constA = $this->makeConstituency('A');
         $constB = $this->makeConstituency('B');
-        $governorA = $this->makeGovernor($constA);
         $cellInB = $this->makeCellGroup($constB);
 
         $this->actingAs($bishop, 'sanctum')
-            ->getJson("/api/v1/bishop/governors/{$governorA->id}/groups/{$cellInB->id}")
+            ->getJson("/api/v1/bishop/governors/{$constA->id}/groups/{$cellInB->id}")
             ->assertStatus(404);
     }
 }

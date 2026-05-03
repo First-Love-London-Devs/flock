@@ -64,17 +64,20 @@ class BishopController extends Controller
 
     protected function constituencyForGovernor(int $govId): Group
     {
-        $role = LeaderRole::where('leader_id', $govId)
+        // The Bishop's Governors list returns one row per Constituency Group, so the
+        // mobile drill-down passes the Constituency Group id as {govId}. Resolve to
+        // that Group directly.
+        $constituencyTypeIds = \App\Models\GroupType::whereIn('slug', ['constituency', 'governor'])->pluck('id');
+
+        $group = Group::where('id', $govId)
+            ->whereIn('group_type_id', $constituencyTypeIds)
             ->where('is_active', true)
-            ->whereNotNull('group_id')
-            ->whereHas('roleDefinition', fn ($q) => $q->where('slug', 'governor'))
-            ->with('group')
             ->first();
 
-        if (!$role || !$role->group) {
+        if (!$group) {
             abort(response()->json(['success' => false, 'message' => 'governor not found'], 404));
         }
-        return $role->group;
+        return $group;
     }
 
     protected function dateRange(Request $request): CarbonPeriod
