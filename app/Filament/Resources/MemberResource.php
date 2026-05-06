@@ -186,6 +186,15 @@ class MemberResource extends Resource
                         true: fn ($query) => $query->whereHas('leader'),
                         false: fn ($query) => $query->whereDoesntHave('leader'),
                     ),
+                Tables\Filters\TernaryFilter::make('has_group')
+                    ->label('In a Group')
+                    ->placeholder('All')
+                    ->trueLabel('In a group')
+                    ->falseLabel('Unassigned')
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('groups'),
+                        false: fn ($query) => $query->whereDoesntHave('groups'),
+                    ),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
