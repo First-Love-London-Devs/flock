@@ -189,6 +189,7 @@ class MemberResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
                 Tables\Actions\Action::make('makeLeader')
                     ->label('Make Leader')
                     ->icon('heroicon-o-shield-check')
