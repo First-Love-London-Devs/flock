@@ -23,6 +23,10 @@ class MemberController extends Controller
                 $query->whereHas('groups', fn ($q) => $q->where('groups.id', $request->group_id));
             }
 
+            if ($request->boolean('unassigned')) {
+                $query->whereDoesntHave('groups');
+            }
+
             if ($request->has('is_active')) {
                 $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
             }
