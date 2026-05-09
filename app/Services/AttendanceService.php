@@ -100,7 +100,7 @@ class AttendanceService
     public function getHistory(int $groupId, ?string $startDate = null, ?string $endDate = null, int $perPage = 15)
     {
         $query = AttendanceSummary::where('group_id', $groupId)
-            ->with('submittedBy.member')
+            ->with(['submittedBy.member', 'attendances', 'nonMemberAttendances.nonMember'])
             ->orderByDesc('date');
 
         if ($startDate) {
