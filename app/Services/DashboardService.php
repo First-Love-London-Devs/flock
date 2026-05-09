@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AttendanceSummary;
 use App\Models\Group;
 use App\Models\Leader;
+use App\Models\LeaderRole;
 use App\Models\Member;
 use Illuminate\Support\Carbon;
 
@@ -55,6 +56,26 @@ class DashboardService
             ->toArray();
     }
 
+    public function getActiveLeaders(?int $groupId = null): int
+    {
+        if (!$groupId) {
+            return Leader::where('is_active', true)->count();
+        }
+
+        $group = Group::find($groupId);
+        if (!$group) {
+            return 0;
+        }
+
+        $groupIds = collect([$groupId])->merge($group->descendants()->pluck('id'));
+
+        return LeaderRole::whereIn('group_id', $groupIds)
+            ->where('is_active', true)
+            ->whereHas('leader', fn ($q) => $q->where('is_active', true))
+            ->distinct('leader_id')
+            ->count('leader_id');
+    }
+
     public function getStats(?int $groupId = null): array
     {
         return [
@@ -62,7 +83,7 @@ class DashboardService
             'total_groups' => $groupId
                 ? (Group::find($groupId)?->descendants()->count() ?? 0)
                 : Group::active()->count(),
-            'active_leaders' => Leader::where('is_active', true)->count(),
+            'active_leaders' => $this->getActiveLeaders($groupId),
             'attendance_trends' => $this->getAttendanceTrends($groupId, 4),
         ];
     }

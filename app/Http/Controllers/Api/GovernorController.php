@@ -37,7 +37,8 @@ class GovernorController extends Controller
     public function members(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', 25);
-        return $this->ok($this->service->members($this->constituency($request), $perPage));
+        $search = $request->query('search');
+        return $this->ok($this->service->members($this->constituency($request), $perPage, $search));
     }
 
     public function attendance(Request $request): JsonResponse

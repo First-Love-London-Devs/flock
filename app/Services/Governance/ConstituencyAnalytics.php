@@ -120,12 +120,23 @@ class ConstituencyAnalytics
         ];
     }
 
-    public function members(Group $constituency, int $perPage = 25): LengthAwarePaginator
+    public function members(Group $constituency, int $perPage = 25, ?string $search = null): LengthAwarePaginator
     {
         $cellGroupIds = $this->cellGroupIdsFor($constituency);
 
-        return Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $cellGroupIds))
-            ->orderBy('last_name')
+        $query = Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $cellGroupIds));
+
+        if ($search !== null && trim($search) !== '') {
+            $term = '%' . trim($search) . '%';
+            $query->where(function ($q) use ($term) {
+                $q->where('first_name', 'like', $term)
+                  ->orWhere('last_name', 'like', $term)
+                  ->orWhere('phone_number', 'like', $term)
+                  ->orWhere('email', 'like', $term);
+            });
+        }
+
+        return $query->orderBy('last_name')
             ->orderBy('first_name')
             ->paginate($perPage);
     }
