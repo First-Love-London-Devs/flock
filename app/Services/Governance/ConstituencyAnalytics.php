@@ -167,6 +167,7 @@ class ConstituencyAnalytics
                 'group_name' => $g->name,
                 'attendance' => $submitted ? (int) $row->total_attendance : null,
                 'submitted' => $submitted,
+                'attendance_summary_id' => $submitted ? (int) $row->id : null,
             ];
         });
 
