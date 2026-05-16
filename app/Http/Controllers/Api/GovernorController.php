@@ -11,9 +11,7 @@ use Illuminate\Http\Request;
 
 class GovernorController extends Controller
 {
-    public function __construct(private readonly ConstituencyAnalytics $service)
-    {
-    }
+    public function __construct(private readonly ConstituencyAnalytics $service) {}
 
     public function dashboard(Request $request): JsonResponse
     {
@@ -28,9 +26,10 @@ class GovernorController extends Controller
     public function groupDetail(Request $request, int $id): JsonResponse
     {
         $detail = $this->service->groupDetail($this->constituency($request), $id);
-        if (!$detail) {
+        if (! $detail) {
             return response()->json(['success' => false, 'message' => 'group not found'], 404);
         }
+
         return $this->ok($detail);
     }
 
@@ -38,6 +37,7 @@ class GovernorController extends Controller
     {
         $perPage = (int) $request->query('per_page', 25);
         $search = $request->query('search');
+
         return $this->ok($this->service->members($this->constituency($request), $perPage, $search));
     }
 
@@ -59,13 +59,14 @@ class GovernorController extends Controller
         $role = $request->user()->leaderRoles()
             ->where('is_active', true)
             ->whereNotNull('group_id')
-            ->whereHas('roleDefinition', fn ($q) => $q->whereIn('slug', ['governor', 'ministry-head']))
+            ->whereHas('roleDefinition', fn ($q) => $q->whereIn('slug', ['governor', 'basonta-head', 'basonta-overseer', 'ministry-head']))
             ->with('group')
             ->first();
 
-        if (!$role || !$role->group) {
+        if (! $role || ! $role->group) {
             abort(response()->json(['success' => false, 'message' => 'no oversight group assigned'], 403));
         }
+
         return $role->group;
     }
 
@@ -77,6 +78,7 @@ class GovernorController extends Controller
     protected function serviceDate(Request $request): ?Carbon
     {
         $value = $request->query('date');
+
         return $value ? Carbon::parse($value) : null;
     }
 
