@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\MemberResource\Pages;
+use App\Models\Group;
 use App\Models\Leader;
 use App\Models\LeaderRole;
 use App\Models\Member;
@@ -14,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class MemberResource extends Resource
 {
@@ -30,7 +32,7 @@ class MemberResource extends Resource
         return ['first_name', 'last_name', 'email'];
     }
 
-    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
+    public static function getGlobalSearchResultDetails(Model $record): array
     {
         return [
             'Email' => $record->email,
@@ -77,16 +79,76 @@ class MemberResource extends Resource
                         Forms\Components\Select::make('member_type')
                             ->label('Type of Member')
                             ->options(Member::MEMBER_TYPES),
-                        Forms\Components\Select::make('groups')
+                        Forms\Components\Select::make('bacenta_groups')
                             ->label('Bacenta')
-                            ->relationship(
-                                'groups',
-                                'name',
-                                fn ($query) => $query->whereHas('groupType', fn ($q) => $q->where('tracks_attendance', true)),
-                            )
                             ->multiple()
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->dehydrated(false)
+                            ->options(fn () => Group::query()
+                                ->whereHas('groupType', fn ($q) => $q->where('tracks_attendance', true)
+                                    ->whereRaw('LOWER(slug) != ?', ['basonta']))
+                                ->orderBy('name')
+                                ->pluck('name', 'id'))
+                            ->afterStateHydrated(function (Forms\Components\Select $component, ?Member $record) {
+                                if (! $record) {
+                                    return;
+                                }
+                                $component->state(
+                                    $record->groups()
+                                        ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) != ?', ['basonta']))
+                                        ->pluck('groups.id')->all()
+                                );
+                            })
+                            ->saveRelationshipsUsing(function (Member $record, $state) {
+                                $managed = Group::query()
+                                    ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) != ?', ['basonta']))
+                                    ->pluck('id');
+                                $record->groups()->detach($managed->all());
+                                $selected = collect($state ?? [])
+                                    ->map(fn ($v) => (int) $v)
+                                    ->filter()
+                                    ->intersect($managed)
+                                    ->all();
+                                if ($selected) {
+                                    $record->groups()->attach($selected);
+                                }
+                            }),
+                        Forms\Components\Select::make('basonta_groups')
+                            ->label('Basonta')
+                            ->helperText('Members assigned here appear in the Basonta leader\'s members list.')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->dehydrated(false)
+                            ->options(fn () => Group::query()
+                                ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['basonta']))
+                                ->orderBy('name')
+                                ->pluck('name', 'id'))
+                            ->afterStateHydrated(function (Forms\Components\Select $component, ?Member $record) {
+                                if (! $record) {
+                                    return;
+                                }
+                                $component->state(
+                                    $record->groups()
+                                        ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['basonta']))
+                                        ->pluck('groups.id')->all()
+                                );
+                            })
+                            ->saveRelationshipsUsing(function (Member $record, $state) {
+                                $basonta = Group::query()
+                                    ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['basonta']))
+                                    ->pluck('id');
+                                $record->groups()->detach($basonta->all());
+                                $selected = collect($state ?? [])
+                                    ->map(fn ($v) => (int) $v)
+                                    ->filter()
+                                    ->intersect($basonta)
+                                    ->all();
+                                if ($selected) {
+                                    $record->groups()->attach($selected);
+                                }
+                            }),
                         Forms\Components\Toggle::make('profile_completed')
                             ->label('Profile Completed'),
                         Forms\Components\Toggle::make('is_active')
@@ -97,7 +159,7 @@ class MemberResource extends Resource
 
                 Forms\Components\Section::make('Additional Information')
                     ->schema(fn () => static::getAdditionalFieldsSchema())
-                    ->visible(fn () => !empty(static::getAdditionalFieldsConfig()))
+                    ->visible(fn () => ! empty(static::getAdditionalFieldsConfig()))
                     ->columns(2),
 
                 Forms\Components\Section::make('Notes')
@@ -124,7 +186,7 @@ class MemberResource extends Resource
         $schema = [];
 
         foreach ($fields as $field) {
-            $name = 'additional_info.' . $field['key'];
+            $name = 'additional_info.'.$field['key'];
             $label = $field['label'];
             $type = $field['type'] ?? 'text';
 
@@ -203,12 +265,12 @@ class MemberResource extends Resource
                     ->label('Make Leader')
                     ->icon('heroicon-o-shield-check')
                     ->color('success')
-                    ->visible(fn (Member $record) => !$record->leader)
+                    ->visible(fn (Member $record) => ! $record->leader)
                     ->form([
                         Forms\Components\TextInput::make('username')
                             ->required()
                             ->unique('leaders', 'username')
-                            ->default(fn (Member $record) => strtolower($record->first_name . '.' . $record->last_name)),
+                            ->default(fn (Member $record) => strtolower($record->first_name.'.'.$record->last_name)),
                         Forms\Components\Select::make('role_definition_id')
                             ->label('Role')
                             ->options(RoleDefinition::active()->pluck('name', 'id'))
@@ -216,7 +278,7 @@ class MemberResource extends Resource
                         Forms\Components\Select::make('group_id')
                             ->label('Assign to Group')
                             ->relationship('groups', 'name')
-                            ->options(fn () => \App\Models\Group::pluck('name', 'id'))
+                            ->options(fn () => Group::pluck('name', 'id'))
                             ->searchable()
                             ->placeholder('No group')
                             ->visible(fn (Forms\Get $get) => filled($get('role_definition_id'))),
@@ -231,7 +293,7 @@ class MemberResource extends Resource
                             'is_active' => true,
                         ]);
 
-                        if (!empty($data['role_definition_id'])) {
+                        if (! empty($data['role_definition_id'])) {
                             LeaderRole::create([
                                 'leader_id' => $leader->id,
                                 'role_definition_id' => $data['role_definition_id'],
