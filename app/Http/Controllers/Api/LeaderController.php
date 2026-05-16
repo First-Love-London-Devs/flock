@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Leader;
 use App\Models\LeaderRole;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -59,14 +60,14 @@ class LeaderController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            $leader = Leader::with(['member', 'leaderRoles.roleDefinition', 'leaderRoles.group', 'ledGroup'])
+            $leader = Leader::with(['member', 'leaderRoles.roleDefinition', 'leaderRoles.group.groupType', 'ledGroup'])
                 ->findOrFail($id);
 
             return response()->json([
                 'success' => true,
                 'data' => $leader,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Leader not found.',
@@ -85,7 +86,7 @@ class LeaderController extends Controller
             $leader = Leader::findOrFail($id);
 
             $validated = $request->validate([
-                'username' => 'sometimes|required|string|max:255|unique:leaders,username,' . $id,
+                'username' => 'sometimes|required|string|max:255|unique:leaders,username,'.$id,
                 'password' => 'sometimes|required|string|min:8',
                 'is_active' => 'boolean',
                 'notification_token' => 'nullable|string',
@@ -97,7 +98,7 @@ class LeaderController extends Controller
                 'success' => true,
                 'data' => $leader->load('member'),
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Leader not found.',
@@ -120,7 +121,7 @@ class LeaderController extends Controller
                 'success' => true,
                 'data' => null,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Leader not found.',
@@ -155,7 +156,7 @@ class LeaderController extends Controller
                 'success' => true,
                 'data' => $leaderRole->load('roleDefinition', 'group'),
             ], 201);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Leader not found.',
@@ -179,7 +180,7 @@ class LeaderController extends Controller
                 'success' => true,
                 'data' => null,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Leader or role not found.',

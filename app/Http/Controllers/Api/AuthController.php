@@ -22,7 +22,7 @@ class AuthController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$leader || !Hash::check($request->password, $leader->password)) {
+        if (! $leader || ! Hash::check($request->password, $leader->password)) {
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
             ]);
@@ -32,7 +32,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'leader' => $leader->load('member', 'leaderRoles.roleDefinition', 'leaderRoles.group'),
+            'leader' => $leader->load('member', 'leaderRoles.roleDefinition', 'leaderRoles.group.groupType'),
             'token' => $token,
         ]);
     }
