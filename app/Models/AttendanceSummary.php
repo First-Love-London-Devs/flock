@@ -23,6 +23,22 @@ class AttendanceSummary extends Model
         'first_timer_count' => 'integer',
     ];
 
+    protected $appends = ['new_convert_count'];
+
+    /**
+     * New-convert tally for this summary. Reads from already-loaded relations
+     * when available to avoid N+1 in history listings.
+     */
+    public function getNewConvertCountAttribute(): int
+    {
+        if ($this->relationLoaded('attendances') && $this->relationLoaded('nonMemberAttendances')) {
+            return $this->attendances->where('is_new_convert', true)->count()
+                + $this->nonMemberAttendances->where('is_new_convert', true)->count();
+        }
+
+        return $this->newConvertCount();
+    }
+
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class);
