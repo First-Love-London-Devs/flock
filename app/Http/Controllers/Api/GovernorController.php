@@ -59,7 +59,7 @@ class GovernorController extends Controller
         $role = $request->user()->leaderRoles()
             ->where('is_active', true)
             ->whereNotNull('group_id')
-            ->whereHas('roleDefinition', fn ($q) => $q->whereIn('slug', ['governor', 'basonta-head', 'basonta-overseer', 'ministry-head']))
+            ->whereHas('roleDefinition', fn ($q) => $q->whereRaw('LOWER(slug) IN (?, ?, ?, ?)', ['governor', 'basonta-head', 'basonta-overseer', 'ministry-head']))
             ->with('group')
             ->first();
 
