@@ -2,6 +2,7 @@
 
 namespace App\Services\Governance;
 
+use App\Models\Attendance;
 use App\Models\AttendanceSummary;
 use App\Models\Group;
 use App\Models\Member;
@@ -159,21 +160,36 @@ class ConstituencyAnalytics
             return $serviceType === 'sunday' ? $isSunday : !$isSunday;
         };
 
-        $byGroup = $cellGroups->map(function (Group $g) use ($rows, $rowMatchesService) {
+        $matched = $rows->filter($rowMatchesService);
+
+        // Per-summary ministered/rehearsed tallies (ministry groups only set
+        // these; non-ministry groups contribute 0). Single grouped query.
+        $ministryTallies = Attendance::whereIn('attendance_summary_id', $matched->pluck('id'))
+            ->selectRaw('attendance_summary_id, SUM(ministered) as ministered, SUM(rehearsed) as rehearsed')
+            ->groupBy('attendance_summary_id')
+            ->get()
+            ->keyBy('attendance_summary_id');
+
+        $byGroup = $cellGroups->map(function (Group $g) use ($rows, $rowMatchesService, $ministryTallies) {
             $row = $rows->get($g->id);
             $submitted = $row && $rowMatchesService($row);
+            $tally = $submitted ? $ministryTallies->get($row->id) : null;
+
             return [
                 'group_id' => $g->id,
                 'group_name' => $g->name,
                 'attendance' => $submitted ? (int) $row->total_attendance : null,
+                'ministered' => $tally ? (int) $tally->ministered : ($submitted ? 0 : null),
+                'rehearsed' => $tally ? (int) $tally->rehearsed : ($submitted ? 0 : null),
                 'submitted' => $submitted,
                 'attendance_summary_id' => $submitted ? (int) $row->id : null,
             ];
         });
 
-        $matched = $rows->filter($rowMatchesService);
         $totalAttendance = (int) $matched->sum('total_attendance');
         $visitorCount = (int) $matched->sum('visitor_count');
+        $totalMinistered = (int) $ministryTallies->sum('ministered');
+        $totalRehearsed = (int) $ministryTallies->sum('rehearsed');
 
         return [
             'date' => $date->toDateString(),
@@ -181,6 +197,8 @@ class ConstituencyAnalytics
             'total_attendance' => $totalAttendance,
             'member_count' => max(0, $totalAttendance - $visitorCount),
             'visitor_count' => $visitorCount,
+            'total_ministered' => $totalMinistered,
+            'total_rehearsed' => $totalRehearsed,
             'groups_submitted' => $matched->count(),
             'total_groups' => $cellGroups->count(),
             'by_group' => $byGroup->values()->all(),

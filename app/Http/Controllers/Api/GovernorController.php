@@ -52,15 +52,19 @@ class GovernorController extends Controller
 
     protected function constituency(Request $request): Group
     {
+        // Generic oversight: governor (constituency) and ministry-head share
+        // this rollup flow — both oversee the child groups of their assigned
+        // group. ConstituencyAnalytics keys purely off parent_id, so it's
+        // group-type agnostic.
         $role = $request->user()->leaderRoles()
             ->where('is_active', true)
             ->whereNotNull('group_id')
-            ->whereHas('roleDefinition', fn ($q) => $q->where('slug', 'governor'))
+            ->whereHas('roleDefinition', fn ($q) => $q->whereIn('slug', ['governor', 'ministry-head']))
             ->with('group')
             ->first();
 
         if (!$role || !$role->group) {
-            abort(response()->json(['success' => false, 'message' => 'no constituency assigned'], 403));
+            abort(response()->json(['success' => false, 'message' => 'no oversight group assigned'], 403));
         }
         return $role->group;
     }

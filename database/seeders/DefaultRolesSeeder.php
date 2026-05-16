@@ -24,6 +24,9 @@ class DefaultRolesSeeder extends Seeder
             ['name' => 'Bishop', 'slug' => 'bishop', 'permission_level' => 90, 'applies_to_group_type_id' => null],
             ['name' => 'Governor', 'slug' => 'governor', 'permission_level' => 70, 'applies_to_group_type_id' => $constituencyType?->id],
             ['name' => 'Ministry Leader', 'slug' => 'ministry-leader', 'permission_level' => 40, 'applies_to_group_type_id' => $ministryType?->id],
+            // Oversees the child ministry groups of its assigned group — sits
+            // above ministries, so not tied to the ministry group type itself.
+            ['name' => 'Ministry Head', 'slug' => 'ministry-head', 'permission_level' => 70, 'applies_to_group_type_id' => null],
         ];
 
         foreach ($roles as $role) {
