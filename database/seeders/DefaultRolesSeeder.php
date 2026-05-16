@@ -14,6 +14,7 @@ class DefaultRolesSeeder extends Seeder
         $districtType = GroupType::where('slug', 'district')->first();
         $cellType = GroupType::where('slug', 'cell-group')->first();
         $constituencyType = GroupType::where('slug', 'constituency')->first();
+        $ministryType = GroupType::where('slug', 'ministry')->first();
 
         $roles = [
             ['name' => 'Super Admin', 'slug' => 'super-admin', 'permission_level' => 100, 'applies_to_group_type_id' => null],
@@ -22,6 +23,7 @@ class DefaultRolesSeeder extends Seeder
             ['name' => 'Cell Leader', 'slug' => 'cell-leader', 'permission_level' => 40, 'applies_to_group_type_id' => $cellType?->id],
             ['name' => 'Bishop', 'slug' => 'bishop', 'permission_level' => 90, 'applies_to_group_type_id' => null],
             ['name' => 'Governor', 'slug' => 'governor', 'permission_level' => 70, 'applies_to_group_type_id' => $constituencyType?->id],
+            ['name' => 'Ministry Leader', 'slug' => 'ministry-leader', 'permission_level' => 40, 'applies_to_group_type_id' => $ministryType?->id],
         ];
 
         foreach ($roles as $role) {
