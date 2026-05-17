@@ -15,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class MemberResource extends Resource
@@ -312,6 +313,31 @@ class MemberResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('assignBasonta')
+                        ->label('Assign to Basonta')
+                        ->icon('heroicon-o-user-group')
+                        ->form([
+                            Forms\Components\Select::make('basonta_group_id')
+                                ->label('Basonta')
+                                ->required()
+                                ->searchable()
+                                ->preload()
+                                ->options(fn () => Group::query()
+                                    ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['basonta']))
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $groupId = (int) $data['basonta_group_id'];
+                            foreach ($records as $member) {
+                                $member->groups()->syncWithoutDetaching([$groupId]);
+                            }
+                            Notification::make()
+                                ->title($records->count().' member(s) assigned to Basonta')
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
