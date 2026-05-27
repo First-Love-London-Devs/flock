@@ -41,6 +41,18 @@ class AttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized for this group.'], 403);
         }
 
+        $existing = AttendanceSummary::where('group_id', $validated['group_id'])
+            ->where('date', $validated['date'])
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attendance already submitted for this date. Edit the existing record instead.',
+                'summary_id' => $existing->id,
+            ], 409);
+        }
+
         try {
             $summary = $this->attendanceService->submitAttendance(
                 $validated['group_id'],
@@ -54,6 +66,28 @@ class AttendanceController extends Controller
                 'success' => true,
                 'data' => $summary,
             ], 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Race: another submit landed between the pre-check and our insert.
+            if (($e->errorInfo[1] ?? null) === 1062) {
+                $raced = AttendanceSummary::where('group_id', $validated['group_id'])
+                    ->where('date', $validated['date'])
+                    ->first();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attendance already submitted for this date. Edit the existing record instead.',
+                    'summary_id' => $raced?->id,
+                ], 409);
+            }
+            Log::error('Attendance submit failed', [
+                'group_id' => $validated['group_id'] ?? null,
+                'date' => $validated['date'] ?? null,
+                'user_id' => $request->user()?->id,
+                'exception' => $e,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit attendance.',
+            ], 500);
         } catch (\Exception $e) {
             Log::error('Attendance submit failed', [
                 'group_id' => $validated['group_id'] ?? null,
