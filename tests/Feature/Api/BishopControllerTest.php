@@ -76,6 +76,56 @@ class BishopControllerTest extends TestCase
         $this->assertSame(50, $r->json('data.totals.sunday'));
     }
 
+    public function test_tenant_wide_summary_endpoint(): void
+    {
+        $bishop = $this->makeBishop();
+        $const = $this->makeConstituency();
+        $cell = $this->makeCellGroup($const);
+        $this->submitAttendance($cell, Carbon::create(2026, 4, 5), 50);
+
+        $r = $this->actingAs($bishop, 'sanctum')
+            ->getJson('/api/v1/bishop/summary?service_type=sunday&date=2026-04-05')
+            ->assertOk()
+            ->assertJsonStructure(['data' => [
+                'date', 'service_type',
+                'total_attendance', 'member_count', 'visitor_count', 'total_members',
+                'first_timer_count', 'new_convert_count',
+                'groups_submitted', 'total_groups',
+            ]]);
+
+        $this->assertSame('sunday', $r->json('data.service_type'));
+        $this->assertSame(50, $r->json('data.total_attendance'));
+        $this->assertSame(1, $r->json('data.groups_submitted'));
+    }
+
+    public function test_summary_without_date_falls_back_to_most_recent_service_day(): void
+    {
+        // The mobile app calls /bishop/summary with no date, so the most-recent-
+        // matching-service fallback path must work and not error.
+        $bishop = $this->makeBishop();
+        $const = $this->makeConstituency();
+        $cell = $this->makeCellGroup($const);
+        $this->submitAttendance($cell, Carbon::create(2026, 4, 5), 42); // a Sunday
+
+        $r = $this->actingAs($bishop, 'sanctum')
+            ->getJson('/api/v1/bishop/summary?service_type=sunday')
+            ->assertOk();
+
+        $this->assertSame('2026-04-05', $r->json('data.date'));
+        $this->assertSame(42, $r->json('data.total_attendance'));
+    }
+
+    public function test_summary_empty_tenant_does_not_error(): void
+    {
+        $bishop = $this->makeBishop();
+
+        $this->actingAs($bishop, 'sanctum')
+            ->getJson('/api/v1/bishop/summary?service_type=sunday')
+            ->assertOk()
+            ->assertJsonPath('data.total_attendance', 0)
+            ->assertJsonPath('data.total_groups', 0);
+    }
+
     public function test_tenant_wide_members_paginates(): void
     {
         $bishop = $this->makeBishop();

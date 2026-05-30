@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceSummary;
 use App\Models\Group;
 use App\Models\Member;
+use App\Models\NonMemberAttendance;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -209,6 +210,65 @@ class ConstituencyAnalytics
     {
         $cellGroupIds = $this->allConstituencyCellGroupIds();
         return $this->attendanceForCellGroups($cellGroupIds, $range);
+    }
+
+    /**
+     * Diocese-wide attendance summary for the bishop dashboard: a single flat
+     * snapshot of the chosen service (sunday|midweek) aggregated across every
+     * cell group under every constituency.
+     */
+    public function tenantWideSummary(string $serviceType, ?Carbon $date = null): array
+    {
+        $cellGroupIds = $this->allConstituencyCellGroupIds();
+
+        $matchesService = fn (AttendanceSummary $r): bool =>
+            $serviceType === 'sunday'
+                ? Carbon::parse($r->date)->isSunday()
+                : !Carbon::parse($r->date)->isSunday();
+
+        // Default to the most recent date (on or before today) that actually has a
+        // submission for this service, so opening "Sunday" on a Tuesday shows last
+        // Sunday's numbers rather than an empty "today".
+        if (!$date) {
+            $recent = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+                ->whereDate('date', '<=', Carbon::today()->toDateString())
+                ->orderByDesc('date')
+                ->get(['id', 'date'])
+                ->first($matchesService)?->date;
+            $date = $recent ? Carbon::parse($recent) : Carbon::today();
+        }
+        $date = $date->copy()->startOfDay();
+
+        $matched = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->whereDate('date', $date->toDateString())
+            ->get()
+            ->filter($matchesService);
+
+        $totalAttendance = (int) $matched->sum('total_attendance');
+        $visitorCount = (int) $matched->sum('visitor_count');
+        $summaryIds = $matched->pluck('id');
+
+        $newConvertCount = (int) Attendance::whereIn('attendance_summary_id', $summaryIds)
+                ->where('is_new_convert', true)->count()
+            + (int) NonMemberAttendance::whereIn('attendance_summary_id', $summaryIds)
+                ->where('is_new_convert', true)->count();
+
+        $totalMembers = Member::whereHas('groups', fn ($q) =>
+            $q->whereIn('groups.id', $cellGroupIds)
+        )->count();
+
+        return [
+            'date' => $date->toDateString(),
+            'service_type' => $serviceType,
+            'total_attendance' => $totalAttendance,
+            'member_count' => max(0, $totalAttendance - $visitorCount),
+            'visitor_count' => $visitorCount,
+            'total_members' => $totalMembers,
+            'first_timer_count' => (int) $matched->sum('first_timer_count'),
+            'new_convert_count' => $newConvertCount,
+            'groups_submitted' => $matched->count(),
+            'total_groups' => count($cellGroupIds),
+        ];
     }
 
     public function tenantWideMembers(int $perPage = 25): LengthAwarePaginator

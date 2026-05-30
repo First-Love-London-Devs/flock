@@ -28,6 +28,14 @@ class BishopController extends Controller
         return $this->ok($this->service->tenantWideAttendance($this->dateRange($request)));
     }
 
+    public function summary(Request $request): JsonResponse
+    {
+        return $this->ok($this->service->tenantWideSummary(
+            $this->serviceType($request),
+            $this->serviceDate($request),
+        ));
+    }
+
     public function members(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', 25);
