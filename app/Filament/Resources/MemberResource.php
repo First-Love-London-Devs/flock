@@ -310,6 +310,40 @@ class MemberResource extends Resource
                             ->success()
                             ->send();
                     }),
+                Tables\Actions\Action::make('makeUnregistered')
+                    ->label('Make Unregistered')
+                    ->icon('heroicon-o-user-minus')
+                    ->color('danger')
+                    ->visible(fn (Member $record) => (bool) $record->leader)
+                    ->requiresConfirmation()
+                    ->modalHeading('Make member unregistered')
+                    ->modalDescription(function (Member $record) {
+                        $base = "This removes {$record->full_name}'s login and app access, along with any leadership roles. Their member record and attendance history are kept, and they can be made a leader again later.";
+
+                        return $record->leader?->ledGroup
+                            ? $base." Note: they currently lead a group, which will be left without a leader."
+                            : $base;
+                    })
+                    ->modalSubmitActionLabel('Make unregistered')
+                    ->action(function (Member $record) {
+                        $leader = $record->leader;
+
+                        if (! $leader) {
+                            return;
+                        }
+
+                        // push_tokens.leader_id has no FK cascade, so clear it explicitly.
+                        $leader->pushTokens()->delete();
+
+                        // Deletes leader_roles (cascade) and nulls group/attendance references (nullOnDelete).
+                        $leader->delete();
+
+                        Notification::make()
+                            ->title("{$record->full_name} is now unregistered")
+                            ->body('Their login and leadership roles have been removed.')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
