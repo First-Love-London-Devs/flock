@@ -7,6 +7,7 @@ use App\Models\Group;
 use App\Models\Leader;
 use App\Models\LeaderRole;
 use App\Models\Member;
+use App\Models\NonMember;
 use App\Models\RoleDefinition;
 use App\Models\Setting;
 use Filament\Forms;
@@ -17,6 +18,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class MemberResource extends Resource
 {
@@ -317,13 +319,32 @@ class MemberResource extends Resource
                     ->visible(fn (Member $record) => $record->member_type === 'member')
                     ->requiresConfirmation()
                     ->modalHeading('Make member unregistered')
-                    ->modalDescription(fn (Member $record) => "This changes {$record->full_name} from a registered member to a visitor. You can change them back anytime by editing their member type.")
+                    ->modalDescription(fn (Member $record) => "This moves {$record->full_name} out of Members and into the Non-Members list. Their past attendance stays on their member record for historical reporting; from now on they're tracked as a non-member. This can be undone by restoring the member.")
                     ->modalSubmitActionLabel('Make unregistered')
                     ->action(function (Member $record) {
-                        $record->update(['member_type' => 'visitor']);
+                        DB::transaction(function () use ($record) {
+                            // Carry over the member's primary group (Non-Members hold a single group).
+                            $primaryGroup = $record->groups()->wherePivot('is_primary', true)->first()
+                                ?? $record->groups()->first();
+
+                            NonMember::create([
+                                'first_name' => $record->first_name,
+                                'last_name' => $record->last_name,
+                                'phone_number' => $record->phone_number,
+                                'email' => $record->email,
+                                'gender' => $record->gender,
+                                'group_id' => $primaryGroup?->id,
+                                'is_active' => $record->is_active,
+                                'notes' => $record->notes,
+                            ]);
+
+                            // Soft-delete keeps the member row + attendance history for past reporting.
+                            $record->delete();
+                        });
 
                         Notification::make()
-                            ->title("{$record->full_name} is now a visitor")
+                            ->title("{$record->full_name} moved to Non-Members")
+                            ->body('Their past attendance stays on their member record.')
                             ->success()
                             ->send();
                     }),
