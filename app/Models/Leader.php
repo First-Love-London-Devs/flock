@@ -43,11 +43,6 @@ class Leader extends Authenticatable
         return $this->hasMany(LeaderRole::class);
     }
 
-    public function pushTokens(): HasMany
-    {
-        return $this->hasMany(PushToken::class);
-    }
-
     public function ledGroup(): HasOne
     {
         return $this->hasOne(Group::class, 'leader_id');
