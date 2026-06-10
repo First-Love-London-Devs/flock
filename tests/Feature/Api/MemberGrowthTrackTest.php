@@ -74,6 +74,27 @@ class MemberGrowthTrackTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_leader_can_update_street_postal_and_gender(): void
+    {
+        [$governor, $member] = $this->actorWithMember();
+
+        $this->actingAs($governor, 'sanctum')
+            ->putJson("/api/v1/members/{$member->id}", [
+                'street_name' => '12 Foxgrove Road',
+                'postal_code' => 'BR3 5BJ',
+                'gender' => 'female',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.street_name', '12 Foxgrove Road')
+            ->assertJsonPath('data.postal_code', 'BR3 5BJ')
+            ->assertJsonPath('data.gender', 'female');
+
+        $member->refresh();
+        $this->assertSame('12 Foxgrove Road', $member->street_name);
+        $this->assertSame('BR3 5BJ', $member->postal_code);
+        $this->assertSame('female', $member->gender);
+    }
+
     public function test_show_returns_growth_track_fields(): void
     {
         [$governor, $member] = $this->actorWithMember();

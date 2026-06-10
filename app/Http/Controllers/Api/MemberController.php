@@ -131,6 +131,8 @@ class MemberController extends Controller
                 'date_of_birth' => 'nullable|date',
                 'gender' => 'nullable|string|in:male,female',
                 'address' => 'nullable|string',
+                'street_name' => 'nullable|string|max:255',
+                'postal_code' => 'nullable|string|max:50',
                 'picture' => 'nullable|string',
                 'marital_status' => 'nullable|string',
                 'occupation' => 'nullable|string|max:255',

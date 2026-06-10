@@ -54,7 +54,8 @@ class Member extends Model
 
     protected $fillable = [
         'first_name', 'last_name', 'email', 'phone_number', 'date_of_birth',
-        'gender', 'address', 'picture', 'marital_status', 'occupation',
+        'gender', 'address', 'street_name', 'postal_code', 'picture',
+        'marital_status', 'occupation',
         'nbs_status', 'holy_ghost_baptism', 'water_baptism',
         'strong_christian_status', 'school_of_the_word_status',
         'school_of_solid_foundation_status', 'school_of_victorious_living_status',

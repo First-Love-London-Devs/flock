@@ -62,10 +62,19 @@ class MemberResource extends Resource
                             ->required(),
                         Forms\Components\TextInput::make('phone_number'),
                         Forms\Components\DatePicker::make('date_of_birth'),
+                        Forms\Components\Select::make('gender')
+                            ->options([
+                                'male' => 'Male',
+                                'female' => 'Female',
+                            ]),
                         Forms\Components\TextInput::make('email')
                             ->email(),
                         Forms\Components\Textarea::make('address')
                             ->columnSpanFull(),
+                        Forms\Components\TextInput::make('street_name')
+                            ->label('Street name'),
+                        Forms\Components\TextInput::make('postal_code')
+                            ->label('Postal code'),
                         Forms\Components\TextInput::make('occupation')
                             ->label('Occupation / School'),
                     ])->columns(2),
