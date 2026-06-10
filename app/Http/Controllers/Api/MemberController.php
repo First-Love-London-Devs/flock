@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Services\LeaderScopeService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class MemberController extends Controller
 {
     public function __construct(
         protected LeaderScopeService $scope,
     ) {}
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -68,10 +71,10 @@ class MemberController extends Controller
             'picture' => 'nullable|string',
             'marital_status' => 'nullable|string',
             'occupation' => 'nullable|string|max:255',
-            'nbs_status' => 'nullable|string|in:' . implode(',', array_keys(Member::NBS_STATUSES)),
+            'nbs_status' => 'nullable|string|in:'.implode(',', array_keys(Member::NBS_STATUSES)),
             'holy_ghost_baptism' => 'boolean',
             'water_baptism' => 'boolean',
-            'member_type' => 'nullable|string|in:' . implode(',', array_keys(Member::MEMBER_TYPES)),
+            'member_type' => 'nullable|string|in:'.implode(',', array_keys(Member::MEMBER_TYPES)),
             'profile_completed' => 'boolean',
             'member_since' => 'nullable|date',
             'notes' => 'nullable|string',
@@ -102,7 +105,7 @@ class MemberController extends Controller
                 'success' => true,
                 'data' => $member,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Member not found.',
@@ -123,7 +126,7 @@ class MemberController extends Controller
             $validated = $request->validate([
                 'first_name' => 'sometimes|required|string|max:255',
                 'last_name' => 'sometimes|required|string|max:255',
-                'email' => 'nullable|email|unique:members,email,' . $id,
+                'email' => 'nullable|email|unique:members,email,'.$id,
                 'phone_number' => 'nullable|string|max:50',
                 'date_of_birth' => 'nullable|date',
                 'gender' => 'nullable|string|in:male,female',
@@ -131,10 +134,16 @@ class MemberController extends Controller
                 'picture' => 'nullable|string',
                 'marital_status' => 'nullable|string',
                 'occupation' => 'nullable|string|max:255',
-                'nbs_status' => 'nullable|string|in:' . implode(',', array_keys(Member::NBS_STATUSES)),
+                'nbs_status' => 'nullable|string|in:'.implode(',', array_keys(Member::NBS_STATUSES)),
                 'holy_ghost_baptism' => 'boolean',
                 'water_baptism' => 'boolean',
-                'member_type' => 'nullable|string|in:' . implode(',', array_keys(Member::MEMBER_TYPES)),
+                'strong_christian_status' => 'nullable|string|in:'.implode(',', array_keys(Member::GROWTH_TRACK_STATUSES)),
+                'school_of_the_word_status' => 'nullable|string|in:'.implode(',', array_keys(Member::GROWTH_TRACK_STATUSES)),
+                'school_of_solid_foundation_status' => 'nullable|string|in:'.implode(',', array_keys(Member::GROWTH_TRACK_STATUSES)),
+                'school_of_victorious_living_status' => 'nullable|string|in:'.implode(',', array_keys(Member::GROWTH_TRACK_STATUSES)),
+                'school_of_apologetics_status' => 'nullable|string|in:'.implode(',', array_keys(Member::GROWTH_TRACK_STATUSES)),
+                'school_of_evangelism_status' => 'nullable|string|in:'.implode(',', array_keys(Member::GROWTH_TRACK_STATUSES)),
+                'member_type' => 'nullable|string|in:'.implode(',', array_keys(Member::MEMBER_TYPES)),
                 'profile_completed' => 'boolean',
                 'member_since' => 'nullable|date',
                 'is_active' => 'boolean',
@@ -148,11 +157,17 @@ class MemberController extends Controller
                 'success' => true,
                 'data' => $member,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Member not found.',
             ], 404);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -171,7 +186,7 @@ class MemberController extends Controller
                 'success' => true,
                 'data' => null,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Member not found.',
@@ -235,7 +250,7 @@ class MemberController extends Controller
                 'success' => true,
                 'data' => $member->load('groups'),
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Member not found.',
@@ -258,7 +273,7 @@ class MemberController extends Controller
                 'success' => true,
                 'data' => $member->load('groups'),
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Member not found.',

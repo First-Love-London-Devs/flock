@@ -13,7 +13,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Member extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     public const MEMBER_TYPES = [
         'member' => 'Member',
@@ -28,6 +28,24 @@ class Member extends Model
         'completed' => 'Completed',
     ];
 
+    /**
+     * Status values shared by every spiritual growth-track course
+     * (New Believers School, Strong Christian, and the Schools).
+     */
+    public const GROWTH_TRACK_STATUSES = self::NBS_STATUSES;
+
+    /**
+     * The growth-track course milestones that use a status column.
+     */
+    public const GROWTH_TRACK_COLUMNS = [
+        'strong_christian_status',
+        'school_of_the_word_status',
+        'school_of_solid_foundation_status',
+        'school_of_victorious_living_status',
+        'school_of_apologetics_status',
+        'school_of_evangelism_status',
+    ];
+
     public const GENDERS = [
         'male' => 'Male',
         'female' => 'Female',
@@ -38,6 +56,9 @@ class Member extends Model
         'first_name', 'last_name', 'email', 'phone_number', 'date_of_birth',
         'gender', 'address', 'picture', 'marital_status', 'occupation',
         'nbs_status', 'holy_ghost_baptism', 'water_baptism',
+        'strong_christian_status', 'school_of_the_word_status',
+        'school_of_solid_foundation_status', 'school_of_victorious_living_status',
+        'school_of_apologetics_status', 'school_of_evangelism_status',
         'member_type', 'profile_completed',
         'member_since', 'is_active', 'notes', 'additional_info',
     ];
@@ -76,7 +97,7 @@ class Member extends Model
 
     public function getFullNameAttribute(): string
     {
-        return $this->first_name . ' ' . $this->last_name;
+        return $this->first_name.' '.$this->last_name;
     }
 
     public function getAvatarUrlAttribute(): string
@@ -85,7 +106,7 @@ class Member extends Model
             return $this->picture;
         }
 
-        return 'https://ui-avatars.com/api/?name=' . urlencode($this->full_name) . '&background=random';
+        return 'https://ui-avatars.com/api/?name='.urlencode($this->full_name).'&background=random';
     }
 
     public function scopeActive($query)
