@@ -29,6 +29,8 @@ class DefaultRolesSeeder extends Seeder
             // Oversees the child ministry groups of its assigned group — sits
             // above ministries, so not tied to the ministry group type itself.
             ['name' => 'Ministry Head', 'slug' => 'ministry-head', 'permission_level' => 70, 'applies_to_group_type_id' => null],
+            // Flexible — attaches to any group; scope resolved at runtime via BFS.
+            ['name' => 'Admin', 'slug' => 'admin', 'permission_level' => 50, 'applies_to_group_type_id' => null],
         ];
 
         foreach ($roles as $role) {
