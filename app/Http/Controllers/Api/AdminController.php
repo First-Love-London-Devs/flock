@@ -59,7 +59,11 @@ class AdminController extends Controller
 
     public function showMember(Request $request, int $id): JsonResponse
     {
-        return $this->ok($this->scopedMember($request, $id)->load('groups:id,name'));
+        $member = Member::with([
+            'groups:id,name,group_type_id',
+            'groups.groupType:id,slug',
+        ])->findOrFail($id);
+        return $this->ok($member);
     }
 
     public function createMember(Request $request): JsonResponse
