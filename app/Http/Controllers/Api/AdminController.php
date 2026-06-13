@@ -25,40 +25,38 @@ class AdminController extends Controller
         return $role->group_id;
     }
 
-    protected function scopedBacentaIds(Request $request): array
+    // Returns all active group IDs in the subtree rooted at the admin's group,
+    // including the root group itself. No group-type filter — gathering services,
+    // cell-groups, constituencies, etc. are all included.
+    protected function scopedGroupIds(Request $request): array
     {
-        $rootId = $this->adminGroupId($request);
-        $cellGroupTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
-
-        // Include the root group itself if it is a cell-group.
-        $rootGroup = Group::find($rootId, ['id', 'group_type_id']);
-        $toVisit   = [];
-        $bacentaIds = [];
-
-        if ($rootGroup) {
-            if ((int) $rootGroup->group_type_id === $cellGroupTypeId) {
-                $bacentaIds[] = $rootGroup->id;
-            } else {
-                $toVisit[] = $rootId;
-            }
-        }
+        $rootId  = $this->adminGroupId($request);
+        $allIds  = [$rootId];
+        $toVisit = [$rootId];
 
         while (! empty($toVisit)) {
             $children = Group::whereIn('parent_id', $toVisit)
                 ->where('is_active', true)
-                ->get(['id', 'group_type_id']);
+                ->pluck('id')
+                ->all();
 
-            $toVisit = [];
-            foreach ($children as $child) {
-                if ((int) $child->group_type_id === $cellGroupTypeId) {
-                    $bacentaIds[] = $child->id;
-                } else {
-                    $toVisit[] = $child->id;
-                }
-            }
+            $toVisit = $children;
+            array_push($allIds, ...$children);
         }
 
-        return $bacentaIds;
+        return $allIds;
+    }
+
+    protected function scopedBacentaIds(Request $request): array
+    {
+        $allIds          = $this->scopedGroupIds($request);
+        $cellGroupTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
+
+        return Group::whereIn('id', $allIds)
+            ->where('group_type_id', $cellGroupTypeId)
+            ->where('is_active', true)
+            ->pluck('id')
+            ->all();
     }
 
     protected function scopedBacenta(Request $request, int $id): Group
@@ -70,9 +68,9 @@ class AdminController extends Controller
 
     protected function scopedMember(Request $request, int $id): Member
     {
-        $bacentaIds = $this->scopedBacentaIds($request);
+        $groupIds = $this->scopedGroupIds($request);
         $member = Member::with('groups')->findOrFail($id);
-        $inScope = $member->groups->pluck('id')->intersect($bacentaIds)->isNotEmpty();
+        $inScope = $member->groups->pluck('id')->intersect($groupIds)->isNotEmpty();
         abort_if(! $inScope, response()->json(['success' => false, 'message' => 'Member not in scope'], 403));
         return $member;
     }
@@ -81,11 +79,11 @@ class AdminController extends Controller
 
     public function listMembers(Request $request): JsonResponse
     {
-        $bacentaIds = $this->scopedBacentaIds($request);
+        $groupIds = $this->scopedGroupIds($request);
         $search = $request->query('search');
         $perPage = (int) $request->query('per_page', 25);
 
-        $query = Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $bacentaIds))
+        $query = Member::whereHas('groups', fn ($q) => $q->whereIn('groups.id', $groupIds))
             ->with(['groups:id,name']);
 
         if ($search) {
