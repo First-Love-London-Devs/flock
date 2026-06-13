@@ -59,11 +59,17 @@ class AdminController extends Controller
 
     public function showMember(Request $request, int $id): JsonResponse
     {
-        $member = Member::with([
-            'groups:id,name,group_type_id',
-            'groups.groupType:id,slug',
-        ])->findOrFail($id);
-        return $this->ok($member);
+        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+        $member = Member::with(['groups:id,name,group_type_id'])->findOrFail($id);
+
+        $data = $member->toArray();
+        $data['groups'] = $member->groups->map(fn ($g) => [
+            'id'         => $g->id,
+            'name'       => $g->name,
+            'is_bacenta' => (int) $g->group_type_id === (int) $cellGroupTypeId,
+        ])->values()->all();
+
+        return $this->ok($data);
     }
 
     public function createMember(Request $request): JsonResponse
