@@ -28,10 +28,20 @@ class AdminController extends Controller
     protected function scopedBacentaIds(Request $request): array
     {
         $rootId = $this->adminGroupId($request);
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+        $cellGroupTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
 
-        $toVisit = [$rootId];
+        // Include the root group itself if it is a cell-group.
+        $rootGroup = Group::find($rootId, ['id', 'group_type_id']);
+        $toVisit   = [];
         $bacentaIds = [];
+
+        if ($rootGroup) {
+            if ((int) $rootGroup->group_type_id === $cellGroupTypeId) {
+                $bacentaIds[] = $rootGroup->id;
+            } else {
+                $toVisit[] = $rootId;
+            }
+        }
 
         while (! empty($toVisit)) {
             $children = Group::whereIn('parent_id', $toVisit)
@@ -40,7 +50,7 @@ class AdminController extends Controller
 
             $toVisit = [];
             foreach ($children as $child) {
-                if ($child->group_type_id === $cellGroupTypeId) {
+                if ((int) $child->group_type_id === $cellGroupTypeId) {
                     $bacentaIds[] = $child->id;
                 } else {
                     $toVisit[] = $child->id;
