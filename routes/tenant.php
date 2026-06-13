@@ -101,9 +101,11 @@ Route::middleware([
             Route::get('members',         [App\Http\Controllers\Api\AdminController::class, 'listMembers']);
             Route::get('members/{id}',    [App\Http\Controllers\Api\AdminController::class, 'showMember'])->whereNumber('id');
             Route::post('members',        [App\Http\Controllers\Api\AdminController::class, 'createMember']);
-            Route::put('members/{id}',    [App\Http\Controllers\Api\AdminController::class, 'updateMember'])->whereNumber('id');
-            Route::delete('members/{id}', [App\Http\Controllers\Api\AdminController::class, 'deactivateMember'])->whereNumber('id');
+            Route::put('members/{id}',        [App\Http\Controllers\Api\AdminController::class, 'updateMember'])->whereNumber('id');
+            Route::put('members/{id}/groups', [App\Http\Controllers\Api\AdminController::class, 'updateMemberGroups'])->whereNumber('id');
+            Route::delete('members/{id}',     [App\Http\Controllers\Api\AdminController::class, 'deactivateMember'])->whereNumber('id');
 
+            Route::get('sontas',   [App\Http\Controllers\Api\AdminController::class, 'listSontas']);
             Route::get('bacentas',         [App\Http\Controllers\Api\AdminController::class, 'listBacentas']);
             Route::get('bacentas/{id}',    [App\Http\Controllers\Api\AdminController::class, 'showBacenta'])->whereNumber('id');
             Route::post('bacentas',        [App\Http\Controllers\Api\AdminController::class, 'createBacenta']);

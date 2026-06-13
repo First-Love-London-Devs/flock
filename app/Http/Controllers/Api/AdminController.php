@@ -124,7 +124,61 @@ class AdminController extends Controller
         return $this->ok(['message' => 'Member deactivated']);
     }
 
+    public function updateMemberGroups(Request $request, int $id): JsonResponse
+    {
+        $member = $this->scopedMember($request, $id);
+
+        $data = $request->validate([
+            'bacenta_id' => 'nullable|integer|exists:groups,id',
+            'sonta_id'   => 'nullable|integer|exists:groups,id',
+        ]);
+
+        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+
+        // Detach all current cell-groups and attach the new one (if provided).
+        $currentBacentaIds = $member->groups()
+            ->where('group_type_id', $cellGroupTypeId)
+            ->pluck('groups.id')
+            ->all();
+        if ($currentBacentaIds) {
+            $member->groups()->detach($currentBacentaIds);
+        }
+        if (! empty($data['bacenta_id'])) {
+            $member->groups()->attach($data['bacenta_id'], ['joined_at' => now(), 'is_primary' => true]);
+        }
+
+        // Detach all current non-cell-groups and attach the new Sonta (if provided).
+        $currentSontaIds = $member->groups()
+            ->where('group_type_id', '!=', $cellGroupTypeId)
+            ->pluck('groups.id')
+            ->all();
+        if ($currentSontaIds) {
+            $member->groups()->detach($currentSontaIds);
+        }
+        if (! empty($data['sonta_id'])) {
+            $member->groups()->attach($data['sonta_id'], ['joined_at' => now(), 'is_primary' => false]);
+        }
+
+        return $this->ok($member->fresh()->load('groups:id,name'));
+    }
+
     // ─── Bacentas ───────────────────────────────────────────────────────────
+
+    public function listSontas(Request $request): JsonResponse
+    {
+        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+        $search = $request->query('search');
+
+        $query = Group::where('group_type_id', '!=', $cellGroupTypeId)
+            ->where('is_active', true)
+            ->withCount('members');
+
+        if ($search) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        return $this->ok($query->get());
+    }
 
     public function listBacentas(Request $request): JsonResponse
     {
