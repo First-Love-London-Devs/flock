@@ -73,6 +73,9 @@ Route::middleware([
         Route::get('/settings', [App\Http\Controllers\Api\SettingController::class, 'index']);
         Route::put('/settings/{key}', [App\Http\Controllers\Api\SettingController::class, 'update']);
 
+        // Birthdays
+        Route::get('/birthdays/upcoming', [App\Http\Controllers\Api\BirthdayController::class, 'upcoming']);
+
         // Push Notifications
         Route::post('/push-token', [App\Http\Controllers\Api\PushNotificationController::class, 'storeToken']);
         Route::delete('/push-token', [App\Http\Controllers\Api\PushNotificationController::class, 'removeToken']);
