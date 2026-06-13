@@ -168,12 +168,30 @@ class AdminController extends Controller
 
     // ─── Bacentas ───────────────────────────────────────────────────────────
 
+    private function descendantGroupIds(int $parentId): array
+    {
+        $ids = [];
+        $queue = [$parentId];
+        while ($queue) {
+            $current = array_shift($queue);
+            $children = Group::where('parent_id', $current)->pluck('id')->all();
+            foreach ($children as $child) {
+                $ids[] = $child;
+                $queue[] = $child;
+            }
+        }
+        return $ids;
+    }
+
     public function listSontas(Request $request): JsonResponse
     {
+        $adminGroupId = $this->adminGroupId($request);
+        $subtreeIds = $this->descendantGroupIds($adminGroupId);
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
         $search = $request->query('search');
 
-        $query = Group::where('group_type_id', '!=', $cellGroupTypeId)
+        $query = Group::whereIn('id', $subtreeIds)
+            ->where('group_type_id', '!=', $cellGroupTypeId)
             ->where('is_active', true)
             ->withCount('members');
 
@@ -186,10 +204,13 @@ class AdminController extends Controller
 
     public function listBacentas(Request $request): JsonResponse
     {
+        $adminGroupId = $this->adminGroupId($request);
+        $subtreeIds = $this->descendantGroupIds($adminGroupId);
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
         $search = $request->query('search');
 
-        $query = Group::where('group_type_id', $cellGroupTypeId)
+        $query = Group::whereIn('id', $subtreeIds)
+            ->where('group_type_id', $cellGroupTypeId)
             ->where('is_active', true)
             ->withCount('members');
 
