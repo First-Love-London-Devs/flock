@@ -84,9 +84,12 @@ Route::middleware([
         Route::prefix('governor')->middleware([\App\Http\Middleware\CheckRole::class . ':governor'])->group(function () {
             Route::get('dashboard',     [App\Http\Controllers\Api\GovernorController::class, 'dashboard']);
             Route::get('groups',        [App\Http\Controllers\Api\GovernorController::class, 'groups']);
-            Route::get('groups/{id}',   [App\Http\Controllers\Api\GovernorController::class, 'groupDetail'])->whereNumber('id');
-            Route::get('members',       [App\Http\Controllers\Api\GovernorController::class, 'members']);
-            Route::get('attendance',    [App\Http\Controllers\Api\GovernorController::class, 'attendance']);
+            Route::get('groups/{id}',       [App\Http\Controllers\Api\GovernorController::class, 'groupDetail'])->whereNumber('id');
+            Route::get('members',           [App\Http\Controllers\Api\GovernorController::class, 'members']);
+            Route::get('attendance',        [App\Http\Controllers\Api\GovernorController::class, 'attendance']);
+            Route::get('attendance-trends', [App\Http\Controllers\Api\GovernorController::class, 'attendanceTrend']);
+            Route::get('attendance/pulse',  [App\Http\Controllers\Api\GovernorController::class, 'attendancePulse']);
+            Route::get('first-timers',      [App\Http\Controllers\Api\GovernorController::class, 'firstTimers']);
         });
 
         Route::prefix('bishop')->middleware([\App\Http\Middleware\CheckRole::class . ':bishop'])->group(function () {

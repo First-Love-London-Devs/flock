@@ -332,6 +332,118 @@ class ConstituencyAnalytics
         })->all();
     }
 
+    public function attendanceTrend(Group $constituency, int $weeks = 8): array
+    {
+        $cellGroupIds = $this->cellGroupIdsFor($constituency);
+        $since = Carbon::now()->subWeeks($weeks - 1)->startOfWeek();
+
+        $rows = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->where('date', '>=', $since->toDateString())
+            ->orderBy('date')
+            ->get();
+
+        $result = [];
+        for ($i = $weeks - 1; $i >= 0; $i--) {
+            $weekStart = Carbon::now()->subWeeks($i)->startOfWeek();
+            $weekEnd   = $weekStart->copy()->endOfWeek();
+
+            $weekRows = $rows->filter(
+                fn ($r) => Carbon::parse($r->date)->between($weekStart, $weekEnd)
+            );
+
+            $result[] = [
+                'week'    => $weekStart->format('M j'),
+                'sunday'  => (int) $weekRows->filter(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance'),
+                'midweek' => (int) $weekRows->reject(fn ($r) => Carbon::parse($r->date)->isSunday())->sum('total_attendance'),
+            ];
+        }
+
+        return $result;
+    }
+
+    public function attendancePulse(Group $constituency): array
+    {
+        $cellGroupIds = $this->cellGroupIdsFor($constituency);
+        $since = Carbon::now()->subWeeks(5)->startOfWeek();
+
+        $groups = Group::whereIn('id', $cellGroupIds)->withCount('members')->get();
+
+        $allSummaries = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->where('date', '>=', $since->toDateString())
+            ->get()
+            ->groupBy('group_id');
+
+        return $groups->map(function (Group $group) use ($allSummaries) {
+            $rows       = $allSummaries->get($group->id, collect());
+            $sundayRows = $rows->filter(fn ($r) => Carbon::parse($r->date)->isSunday())->sortBy('date');
+
+            $memberCount = max(1, $group->members_count);
+            $avgSunday   = $sundayRows->count() > 0 ? $sundayRows->avg('total_attendance') : 0;
+            $rate        = $avgSunday / $memberCount;
+
+            $pulse = match (true) {
+                $rate >= 0.75 => 'stable',
+                $rate >= 0.50 => 'mild',
+                $rate >= 0.25 => 'urgent',
+                default       => 'critical',
+            };
+
+            return [
+                'group_id'        => $group->id,
+                'group_name'      => $group->name,
+                'members_count'   => $group->members_count,
+                'avg_attendance'  => round($avgSunday, 1),
+                'attendance_rate' => round($rate * 100),
+                'pulse'           => $pulse,
+                'recent_weeks'    => $sundayRows->map(fn ($r) => (int) $r->total_attendance)->values()->all(),
+            ];
+        })->sortBy('attendance_rate')->values()->all();
+    }
+
+    public function firstTimers(Group $constituency, int $daysBack = 28): array
+    {
+        $cellGroupIds = $this->cellGroupIdsFor($constituency);
+        $since = Carbon::now()->subDays($daysBack)->toDateString();
+
+        $summaries = AttendanceSummary::whereIn('group_id', $cellGroupIds)
+            ->where('date', '>=', $since)
+            ->get()
+            ->keyBy('id');
+
+        if ($summaries->isEmpty()) {
+            return [];
+        }
+
+        $groups = Group::whereIn('id', $cellGroupIds)->pluck('name', 'id');
+
+        $nonMemberRows = NonMemberAttendance::whereIn('attendance_summary_id', $summaries->pluck('id')->all())
+            ->where(fn ($q) => $q->where('is_first_timer', true)->orWhere('is_new_convert', true))
+            ->with('nonMember')
+            ->get();
+
+        return $nonMemberRows
+            ->map(function ($nma) use ($summaries, $groups) {
+                $summary = $summaries->get($nma->attendance_summary_id);
+                if (! $summary || ! $nma->nonMember) {
+                    return null;
+                }
+                $nm = $nma->nonMember;
+
+                return [
+                    'id'           => $nm->id,
+                    'type'         => $nma->is_new_convert ? 'new_convert' : 'first_timer',
+                    'name'         => trim($nm->first_name . ' ' . $nm->last_name),
+                    'phone_number' => $nm->phone_number,
+                    'date'         => $summary->date,
+                    'group_name'   => $groups->get($summary->group_id, 'Unknown'),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('date')
+            ->values()
+            ->all();
+    }
+
     protected function cellGroupIdsFor(Group $constituency): array
     {
         return Group::where('parent_id', $constituency->id)

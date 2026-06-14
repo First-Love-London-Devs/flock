@@ -41,6 +41,23 @@ class GovernorController extends Controller
         return $this->ok($this->service->members($this->constituency($request), $perPage, $search));
     }
 
+    public function attendanceTrend(Request $request): JsonResponse
+    {
+        $weeks = max(1, min(26, (int) $request->query('weeks', 8)));
+        return $this->ok($this->service->attendanceTrend($this->constituency($request), $weeks));
+    }
+
+    public function attendancePulse(Request $request): JsonResponse
+    {
+        return $this->ok($this->service->attendancePulse($this->constituency($request)));
+    }
+
+    public function firstTimers(Request $request): JsonResponse
+    {
+        $daysBack = max(7, min(90, (int) $request->query('days', 28)));
+        return $this->ok($this->service->firstTimers($this->constituency($request), $daysBack));
+    }
+
     public function attendance(Request $request): JsonResponse
     {
         return $this->ok($this->service->attendance(
