@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Web\WelcomeFormController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -18,6 +19,10 @@ Route::middleware([
             'status' => 'ok',
         ]);
     });
+
+    // Public first-timer / convert capture form (Understanding Campaign).
+    Route::get('/welcome', [WelcomeFormController::class, 'show'])->name('welcome-form.show');
+    Route::post('/welcome', [WelcomeFormController::class, 'store'])->name('welcome-form.store');
 });
 
 Route::middleware([
