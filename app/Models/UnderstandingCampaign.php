@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class UnderstandingCampaign extends Model
 {
     protected $fillable = [
+        'stream_id',
         'attended_on',
         'first_name',
         'last_name',
@@ -25,6 +26,11 @@ class UnderstandingCampaign extends Model
         're_dedicating' => 'boolean',
         'first_time' => 'boolean',
     ];
+
+    public function stream(): BelongsTo
+    {
+        return $this->belongsTo(Group::class, 'stream_id');
+    }
 
     public function allocatedGroup(): BelongsTo
     {
