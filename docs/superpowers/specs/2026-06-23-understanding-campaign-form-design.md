@@ -41,12 +41,15 @@ New tenant table `understanding_campaigns`:
 | `attended_on` | date | "Date" on the form; defaults to today |
 | `first_name` | string | required |
 | `last_name` | string | required (Surname / Achternaam) |
-| `street_name` | string, nullable | Straatnaam |
-| `postal_code` | string, nullable | Postcode |
+| `street_name` | string | Straatnaam |
+| `postal_code` | string | Postcode |
 | `phone_number` | string | required |
 | `re_dedicating` | boolean, default false | "Re-dedicating your life to Christ?" |
 | `first_time` | boolean, default false | "First time at this church?" |
-| `who_invited` | string, nullable | free text |
+| `who_invited` | string | free text |
+
+All text columns are NOT NULL (the form requires every field). Only
+`allocated_group_id` is nullable (set by staff later).
 | `allocated_group_id` | FK → `groups.id`, nullable, `nullOnDelete` | the allocated Bacenta; set by staff in admin |
 | `created_at` / `updated_at` | timestamps | |
 
@@ -61,10 +64,9 @@ relation to `Group`.
   - `POST /welcome` → validates + stores an `UnderstandingCampaign`, redirects back with a bilingual success flash.
 - **Controller:** `App\Http\Controllers\Web\WelcomeFormController` with `show()` and `store()`. Tenancy is already initialised by the route group, so the model writes to the tenant DB.
 - **View:** a new Blade view (e.g. `resources/views/welcome-form.blade.php` — NOT the existing central `welcome.blade.php`). Single-column, mobile-friendly, lightly styled (Tailwind is available; otherwise minimal inline/CSS matching the existing public pages). Each label shows EN / NL together, e.g. `First Name / Voornaam`.
-- **Fields & validation:**
+- **Fields & validation:** every field is required (owner's call).
   - `attended_on` — required date, defaults to today.
-  - `first_name`, `last_name`, `phone_number` — required strings.
-  - `street_name`, `postal_code`, `who_invited` — nullable strings.
+  - `first_name`, `last_name`, `street_name`, `postal_code`, `phone_number`, `who_invited` — required strings.
   - `re_dedicating`, `first_time` — required Yes/No (radio), stored as boolean.
 - **Submit behaviour:** on success show a friendly bilingual thank-you message (flash on the same page, form cleared). On validation error, redisplay with messages and old input. CSRF via the standard `web` middleware.
 - **Classification:** `first_time = true` ⇒ first-timer; `re_dedicating = true` ⇒ convert/re-dedication. Both are independent booleans (a person can be either, both, or neither).
