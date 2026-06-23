@@ -20,7 +20,7 @@
     </style>
 
     <h1 class="page-title">Welcome / Welkom</h1>
-    <p class="page-subtitle">We'd love to get to know you — please share your details. / We willen je graag leren kennen — vul hieronder je gegevens in.</p>
+    <p class="page-subtitle">{{ $stream->name }} — we'd love to get to know you. / {{ $stream->name }} — we willen je graag leren kennen. Vul hieronder je gegevens in.</p>
 
     @if (session('success'))
         <div class="card" style="border-color:#16a34a;background:#f0fdf4;">
@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <form method="POST" action="/welcome" class="card uc-form">
+    <form method="POST" action="/welcome/{{ $streamSlug }}" class="card uc-form">
         @csrf
 
         <label for="attended_on">Date</label>

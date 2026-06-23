@@ -29,6 +29,7 @@ class UnderstandingCampaignResource extends Resource
         return $form->schema([
             Forms\Components\Section::make('Submission')
                 ->schema([
+                    Forms\Components\Select::make('stream_id')->label('Stream')->relationship('stream', 'name')->disabled(),
                     Forms\Components\DatePicker::make('attended_on')->label('Date')->disabled(),
                     Forms\Components\TextInput::make('first_name')->disabled(),
                     Forms\Components\TextInput::make('last_name')->label('Surname')->disabled(),
@@ -60,6 +61,7 @@ class UnderstandingCampaignResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('attended_on')->label('Date')->date()->sortable(),
+                Tables\Columns\TextColumn::make('stream.name')->label('Stream')->sortable(),
                 Tables\Columns\TextColumn::make('first_name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('last_name')->label('Surname')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('phone_number')->searchable(),
@@ -71,6 +73,9 @@ class UnderstandingCampaignResource extends Resource
             ])
             ->defaultSort('attended_on', 'desc')
             ->filters([
+                Tables\Filters\SelectFilter::make('stream_id')
+                    ->label('Stream')
+                    ->relationship('stream', 'name'),
                 Tables\Filters\Filter::make('unallocated')
                     ->label('Not yet allocated')
                     ->query(fn ($query) => $query->whereNull('allocated_group_id')),

@@ -37,9 +37,10 @@ Route::middleware([
         ]);
     });
 
-    // Public first-timer / convert capture form (Understanding Campaign).
-    Route::get('/welcome', [WelcomeFormController::class, 'show'])->name('welcome-form.show');
-    Route::post('/welcome', [WelcomeFormController::class, 'store'])->name('welcome-form.store');
+    // Public first-timer / convert capture form (Understanding Campaign), per Stream.
+    Route::get('/welcome', [WelcomeFormController::class, 'index'])->name('welcome.index');
+    Route::get('/welcome/{stream}', [WelcomeFormController::class, 'show'])->name('welcome-form.show');
+    Route::post('/welcome/{stream}', [WelcomeFormController::class, 'store'])->name('welcome-form.store');
 });
 
 Route::middleware([
