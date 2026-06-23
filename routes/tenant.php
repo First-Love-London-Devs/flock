@@ -2,7 +2,24 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BirthdayController;
+use App\Http\Controllers\Api\BishopController;
+use App\Http\Controllers\Api\BrandingController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\GovernorController;
+use App\Http\Controllers\Api\GroupController;
+use App\Http\Controllers\Api\GroupTypeController;
+use App\Http\Controllers\Api\LeaderController;
+use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\NonMemberController;
+use App\Http\Controllers\Api\PushNotificationController;
+use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Web\WelcomeFormController;
+use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\InitializeLeaderScope;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -30,98 +47,98 @@ Route::middleware([
     PreventAccessFromCentralDomains::class,
 ])->prefix('api/v1')->group(function () {
     // Public routes (no auth required)
-    Route::post('/auth/login', [App\Http\Controllers\Api\AuthController::class, 'login']);
-    Route::get('/branding', [App\Http\Controllers\Api\BrandingController::class, 'index']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::get('/branding', [BrandingController::class, 'index']);
 
     // Protected routes
-    Route::middleware(['auth:sanctum', \App\Http\Middleware\InitializeLeaderScope::class])->group(function () {
-        Route::post('/auth/logout', [App\Http\Controllers\Api\AuthController::class, 'logout']);
+    Route::middleware(['auth:sanctum', InitializeLeaderScope::class])->group(function () {
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
 
         // Group Types
-        Route::apiResource('group-types', App\Http\Controllers\Api\GroupTypeController::class);
+        Route::apiResource('group-types', GroupTypeController::class);
 
         // Groups
-        Route::get('/groups/{id}/children', [App\Http\Controllers\Api\GroupController::class, 'children']);
-        Route::get('/groups/{id}/ancestors', [App\Http\Controllers\Api\GroupController::class, 'ancestors']);
-        Route::get('/groups/{id}/members', [App\Http\Controllers\Api\GroupController::class, 'members']);
-        Route::get('/groups/{id}/hierarchy', [App\Http\Controllers\Api\GroupController::class, 'hierarchy']);
-        Route::apiResource('groups', App\Http\Controllers\Api\GroupController::class);
+        Route::get('/groups/{id}/children', [GroupController::class, 'children']);
+        Route::get('/groups/{id}/ancestors', [GroupController::class, 'ancestors']);
+        Route::get('/groups/{id}/members', [GroupController::class, 'members']);
+        Route::get('/groups/{id}/hierarchy', [GroupController::class, 'hierarchy']);
+        Route::apiResource('groups', GroupController::class);
 
         // Members
-        Route::get('/members/search', [App\Http\Controllers\Api\MemberController::class, 'search']);
-        Route::post('/members/{id}/assign-group', [App\Http\Controllers\Api\MemberController::class, 'assignGroup']);
-        Route::delete('/members/{id}/remove-group/{groupId}', [App\Http\Controllers\Api\MemberController::class, 'removeGroup']);
-        Route::apiResource('members', App\Http\Controllers\Api\MemberController::class);
+        Route::get('/members/search', [MemberController::class, 'search']);
+        Route::post('/members/{id}/assign-group', [MemberController::class, 'assignGroup']);
+        Route::delete('/members/{id}/remove-group/{groupId}', [MemberController::class, 'removeGroup']);
+        Route::apiResource('members', MemberController::class);
 
         // Non-Members
-        Route::apiResource('non-members', App\Http\Controllers\Api\NonMemberController::class);
+        Route::apiResource('non-members', NonMemberController::class);
 
         // Leaders
-        Route::post('/leaders/{id}/assign-role', [App\Http\Controllers\Api\LeaderController::class, 'assignRole']);
-        Route::delete('/leaders/{id}/remove-role/{roleId}', [App\Http\Controllers\Api\LeaderController::class, 'removeRole']);
-        Route::apiResource('leaders', App\Http\Controllers\Api\LeaderController::class);
+        Route::post('/leaders/{id}/assign-role', [LeaderController::class, 'assignRole']);
+        Route::delete('/leaders/{id}/remove-role/{roleId}', [LeaderController::class, 'removeRole']);
+        Route::apiResource('leaders', LeaderController::class);
 
         // Attendance
-        Route::post('/attendance/submit', [App\Http\Controllers\Api\AttendanceController::class, 'submit']);
-        Route::get('/attendance/group/{groupId}', [App\Http\Controllers\Api\AttendanceController::class, 'groupHistory']);
-        Route::get('/attendance/defaulters/{parentGroupId}/{date}', [App\Http\Controllers\Api\AttendanceController::class, 'defaulters']);
-        Route::get('/attendance/{summaryId}', [App\Http\Controllers\Api\AttendanceController::class, 'show']);
-        Route::put('/attendance/{summaryId}', [App\Http\Controllers\Api\AttendanceController::class, 'update']);
-        Route::delete('/attendance/{summaryId}', [App\Http\Controllers\Api\AttendanceController::class, 'destroy']);
+        Route::post('/attendance/submit', [AttendanceController::class, 'submit']);
+        Route::get('/attendance/group/{groupId}', [AttendanceController::class, 'groupHistory']);
+        Route::get('/attendance/defaulters/{parentGroupId}/{date}', [AttendanceController::class, 'defaulters']);
+        Route::get('/attendance/{summaryId}', [AttendanceController::class, 'show']);
+        Route::put('/attendance/{summaryId}', [AttendanceController::class, 'update']);
+        Route::delete('/attendance/{summaryId}', [AttendanceController::class, 'destroy']);
 
         // Dashboard
-        Route::get('/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'index']);
-        Route::get('/dashboard/attendance-trends', [App\Http\Controllers\Api\DashboardController::class, 'attendanceTrends']);
-        Route::get('/dashboard/defaulters', [App\Http\Controllers\Api\DashboardController::class, 'defaulters']);
+        Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/dashboard/attendance-trends', [DashboardController::class, 'attendanceTrends']);
+        Route::get('/dashboard/defaulters', [DashboardController::class, 'defaulters']);
 
         // Settings
-        Route::get('/settings', [App\Http\Controllers\Api\SettingController::class, 'index']);
-        Route::put('/settings/{key}', [App\Http\Controllers\Api\SettingController::class, 'update']);
+        Route::get('/settings', [SettingController::class, 'index']);
+        Route::put('/settings/{key}', [SettingController::class, 'update']);
 
         // Birthdays
-        Route::get('/birthdays/upcoming', [App\Http\Controllers\Api\BirthdayController::class, 'upcoming']);
+        Route::get('/birthdays/upcoming', [BirthdayController::class, 'upcoming']);
 
         // Push Notifications
-        Route::post('/push-token', [App\Http\Controllers\Api\PushNotificationController::class, 'storeToken']);
-        Route::delete('/push-token', [App\Http\Controllers\Api\PushNotificationController::class, 'removeToken']);
-        Route::post('/notifications/send', [App\Http\Controllers\Api\PushNotificationController::class, 'send']);
+        Route::post('/push-token', [PushNotificationController::class, 'storeToken']);
+        Route::delete('/push-token', [PushNotificationController::class, 'removeToken']);
+        Route::post('/notifications/send', [PushNotificationController::class, 'send']);
 
-        Route::prefix('governor')->middleware([\App\Http\Middleware\CheckRole::class . ':governor'])->group(function () {
-            Route::get('dashboard',     [App\Http\Controllers\Api\GovernorController::class, 'dashboard']);
-            Route::get('groups',        [App\Http\Controllers\Api\GovernorController::class, 'groups']);
-            Route::get('groups/{id}',       [App\Http\Controllers\Api\GovernorController::class, 'groupDetail'])->whereNumber('id');
-            Route::get('members',           [App\Http\Controllers\Api\GovernorController::class, 'members']);
-            Route::get('attendance',        [App\Http\Controllers\Api\GovernorController::class, 'attendance']);
-            Route::get('attendance-trends', [App\Http\Controllers\Api\GovernorController::class, 'attendanceTrend']);
-            Route::get('attendance/pulse',  [App\Http\Controllers\Api\GovernorController::class, 'attendancePulse']);
-            Route::get('first-timers',      [App\Http\Controllers\Api\GovernorController::class, 'firstTimers']);
+        Route::prefix('governor')->middleware([CheckRole::class.':governor'])->group(function () {
+            Route::get('dashboard', [GovernorController::class, 'dashboard']);
+            Route::get('groups', [GovernorController::class, 'groups']);
+            Route::get('groups/{id}', [GovernorController::class, 'groupDetail'])->whereNumber('id');
+            Route::get('members', [GovernorController::class, 'members']);
+            Route::get('attendance', [GovernorController::class, 'attendance']);
+            Route::get('attendance-trends', [GovernorController::class, 'attendanceTrend']);
+            Route::get('attendance/pulse', [GovernorController::class, 'attendancePulse']);
+            Route::get('first-timers', [GovernorController::class, 'firstTimers']);
         });
 
-        Route::prefix('bishop')->middleware([\App\Http\Middleware\CheckRole::class . ':bishop'])->group(function () {
-            Route::get('governors',  [App\Http\Controllers\Api\BishopController::class, 'governors']);
-            Route::get('attendance', [App\Http\Controllers\Api\BishopController::class, 'attendance']);
-            Route::get('summary',    [App\Http\Controllers\Api\BishopController::class, 'summary']);
-            Route::get('members',    [App\Http\Controllers\Api\BishopController::class, 'members']);
-            Route::get('governors/{govId}/dashboard',          [App\Http\Controllers\Api\BishopController::class, 'governorDashboard'])->whereNumber('govId');
-            Route::get('governors/{govId}/groups',             [App\Http\Controllers\Api\BishopController::class, 'governorGroups'])->whereNumber('govId');
-            Route::get('governors/{govId}/groups/{groupId}',   [App\Http\Controllers\Api\BishopController::class, 'groupDetail'])->whereNumber('govId')->whereNumber('groupId');
-            Route::get('governors/{govId}/attendance',         [App\Http\Controllers\Api\BishopController::class, 'governorAttendance'])->whereNumber('govId');
+        Route::prefix('bishop')->middleware([CheckRole::class.':bishop'])->group(function () {
+            Route::get('governors', [BishopController::class, 'governors']);
+            Route::get('attendance', [BishopController::class, 'attendance']);
+            Route::get('summary', [BishopController::class, 'summary']);
+            Route::get('members', [BishopController::class, 'members']);
+            Route::get('governors/{govId}/dashboard', [BishopController::class, 'governorDashboard'])->whereNumber('govId');
+            Route::get('governors/{govId}/groups', [BishopController::class, 'governorGroups'])->whereNumber('govId');
+            Route::get('governors/{govId}/groups/{groupId}', [BishopController::class, 'groupDetail'])->whereNumber('govId')->whereNumber('groupId');
+            Route::get('governors/{govId}/attendance', [BishopController::class, 'governorAttendance'])->whereNumber('govId');
         });
 
-        Route::prefix('admin')->middleware([\App\Http\Middleware\CheckRole::class . ':admin'])->group(function () {
-            Route::get('members',         [App\Http\Controllers\Api\AdminController::class, 'listMembers']);
-            Route::get('members/{id}',    [App\Http\Controllers\Api\AdminController::class, 'showMember'])->whereNumber('id');
-            Route::post('members',        [App\Http\Controllers\Api\AdminController::class, 'createMember']);
-            Route::put('members/{id}',        [App\Http\Controllers\Api\AdminController::class, 'updateMember'])->whereNumber('id');
-            Route::put('members/{id}/groups', [App\Http\Controllers\Api\AdminController::class, 'updateMemberGroups'])->whereNumber('id');
-            Route::delete('members/{id}',     [App\Http\Controllers\Api\AdminController::class, 'deactivateMember'])->whereNumber('id');
+        Route::prefix('admin')->middleware([CheckRole::class.':admin'])->group(function () {
+            Route::get('members', [AdminController::class, 'listMembers']);
+            Route::get('members/{id}', [AdminController::class, 'showMember'])->whereNumber('id');
+            Route::post('members', [AdminController::class, 'createMember']);
+            Route::put('members/{id}', [AdminController::class, 'updateMember'])->whereNumber('id');
+            Route::put('members/{id}/groups', [AdminController::class, 'updateMemberGroups'])->whereNumber('id');
+            Route::delete('members/{id}', [AdminController::class, 'deactivateMember'])->whereNumber('id');
 
-            Route::get('sontas',   [App\Http\Controllers\Api\AdminController::class, 'listSontas']);
-            Route::get('bacentas',         [App\Http\Controllers\Api\AdminController::class, 'listBacentas']);
-            Route::get('bacentas/{id}',    [App\Http\Controllers\Api\AdminController::class, 'showBacenta'])->whereNumber('id');
-            Route::post('bacentas',        [App\Http\Controllers\Api\AdminController::class, 'createBacenta']);
-            Route::put('bacentas/{id}',    [App\Http\Controllers\Api\AdminController::class, 'updateBacenta'])->whereNumber('id');
-            Route::delete('bacentas/{id}', [App\Http\Controllers\Api\AdminController::class, 'deactivateBacenta'])->whereNumber('id');
+            Route::get('sontas', [AdminController::class, 'listSontas']);
+            Route::get('bacentas', [AdminController::class, 'listBacentas']);
+            Route::get('bacentas/{id}', [AdminController::class, 'showBacenta'])->whereNumber('id');
+            Route::post('bacentas', [AdminController::class, 'createBacenta']);
+            Route::put('bacentas/{id}', [AdminController::class, 'updateBacenta'])->whereNumber('id');
+            Route::delete('bacentas/{id}', [AdminController::class, 'deactivateBacenta'])->whereNumber('id');
         });
     });
 });
