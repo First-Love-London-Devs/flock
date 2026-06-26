@@ -43,6 +43,19 @@
             </x-filament::section>
         @endif
 
+        {{-- Convert to import-ready CSV (handy when an .xlsx was uploaded) --}}
+        <x-filament::section>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm font-medium">Need an import file?</p>
+                    <p class="text-sm text-gray-500">Download these rows as a CSV with the exact columns the importer expects — then upload it under Members → Import.</p>
+                </div>
+                <x-filament::button wire:click="downloadCsv" icon="heroicon-o-arrow-down-tray" color="gray">
+                    Download import-ready CSV
+                </x-filament::button>
+            </div>
+        </x-filament::section>
+
         {{-- Headline numbers --}}
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
             @foreach ([
