@@ -82,4 +82,14 @@ class MemberImportSanityCheckerTest extends TestCase
         $this->assertCount(1, $report['invalidEnum']);
         $this->assertSame('gender', $report['invalidEnum'][0]['field']);
     }
+
+    public function test_it_accepts_human_cased_dropdown_values(): void
+    {
+        $report = $this->check([
+            ['first_name' => 'A', 'last_name' => 'B', 'email' => '', 'phone_number' => '1', 'gender' => 'Female', 'member_type' => 'First Timer', 'nbs_status' => 'Not Started', 'group' => ''],
+            ['first_name' => 'C', 'last_name' => 'D', 'email' => '', 'phone_number' => '2', 'gender' => 'Male', 'group' => ''],
+        ]);
+
+        $this->assertCount(0, $report['invalidEnum']);
+    }
 }

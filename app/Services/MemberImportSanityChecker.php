@@ -107,7 +107,9 @@ class MemberImportSanityChecker
 
             foreach ([['gender', $genders], ['member_type', $memberTypes], ['nbs_status', $nbsStatuses]] as [$field, $allowed]) {
                 $value = trim((string) ($row[$field] ?? ''));
-                if ($value !== '' && ! in_array($value, $allowed, true)) {
+                // Mirror the importer: it normalises "Female" → female before
+                // validating, so only genuinely unknown values are flagged.
+                if ($value !== '' && ! in_array(Member::normalizeEnumValue($value), $allowed, true)) {
                     $report['invalidEnum'][] = ['line' => $line, 'field' => $field, 'value' => $value];
                 }
             }

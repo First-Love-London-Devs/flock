@@ -74,6 +74,21 @@ class Member extends Model
         'additional_info' => 'array',
     ];
 
+    /**
+     * Normalise an enum-ish value (gender, member_type, nbs_status) to its
+     * canonical key — lower-cased with spaces as underscores. Lets imports
+     * accept human spellings like "Female" or "First Timer".
+     */
+    public static function normalizeEnumValue(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $normalized = str_replace(' ', '_', mb_strtolower(trim($value)));
+
+        return $normalized === '' ? null : $normalized;
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logOnly(['first_name', 'last_name', 'is_active']);

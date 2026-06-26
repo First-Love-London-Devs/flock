@@ -36,6 +36,7 @@ class MemberImporter extends Importer
                 ->rules(['nullable', 'date'])
                 ->example('1990-01-15'),
             ImportColumn::make('gender')
+                ->castStateUsing(fn ($state) => Member::normalizeEnumValue($state))
                 ->rules(['nullable', 'string', 'in:' . implode(',', array_keys(Member::GENDERS))])
                 ->example('male'),
             ImportColumn::make('address')
@@ -50,6 +51,7 @@ class MemberImporter extends Importer
                 ->example('single'),
             ImportColumn::make('nbs_status')
                 ->label('NBS Status')
+                ->castStateUsing(fn ($state) => Member::normalizeEnumValue($state))
                 ->rules(['nullable', 'string', 'in:' . implode(',', array_keys(Member::NBS_STATUSES))])
                 ->example('completed'),
             ImportColumn::make('holy_ghost_baptism')
@@ -64,6 +66,7 @@ class MemberImporter extends Importer
                 ->example('yes'),
             ImportColumn::make('member_type')
                 ->label('Type of Member')
+                ->castStateUsing(fn ($state) => Member::normalizeEnumValue($state))
                 ->rules(['nullable', 'string', 'in:' . implode(',', array_keys(Member::MEMBER_TYPES))])
                 ->example('member'),
             ImportColumn::make('member_since')
