@@ -80,11 +80,35 @@ class MemberImporter extends Importer
 
     public function resolveRecord(): ?Member
     {
-        if ($this->data['email'] ?? null) {
-            return Member::firstOrNew(['email' => $this->data['email']]);
+        $email = trim((string) ($this->data['email'] ?? ''));
+
+        // Match on email case-insensitively: the DB unique index is
+        // case-insensitive, so a case-only difference would otherwise slip
+        // past firstOrNew() and crash with a duplicate-key error.
+        if ($email !== '') {
+            return Member::whereRaw('LOWER(email) = ?', [mb_strtolower($email)])->first()
+                ?? new Member();
         }
 
-        return new Member();
+        // No email: dedupe on name (plus phone when present) so re-running the
+        // same import reconciles existing rows instead of creating duplicates.
+        $first = trim((string) ($this->data['first_name'] ?? ''));
+        $last = trim((string) ($this->data['last_name'] ?? ''));
+        $phone = trim((string) ($this->data['phone_number'] ?? ''));
+
+        if ($first === '' && $last === '') {
+            return new Member();
+        }
+
+        $query = Member::query()
+            ->whereRaw('LOWER(first_name) = ?', [mb_strtolower($first)])
+            ->whereRaw('LOWER(last_name) = ?', [mb_strtolower($last)]);
+
+        if ($phone !== '') {
+            $query->where('phone_number', $phone);
+        }
+
+        return $query->first() ?? new Member();
     }
 
     public function afterSave(): void
