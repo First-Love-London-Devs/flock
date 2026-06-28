@@ -178,10 +178,13 @@
         @endif
 
         {{-- Header / structural notes --}}
-        @if (count($r['missingRequiredHeaders']) || count($r['unknownHeaders']) || $r['blankEmail'] || $r['blankMatchExisting'])
+        @if (count($r['missingRequiredHeaders']) || count($r['unknownHeaders']) || $r['blankEmail'] || $r['blankMatchExisting'] || ($r['willRestore'] ?? 0))
             <x-filament::section icon="heroicon-o-information-circle" collapsible collapsed>
                 <x-slot name="heading">Notes</x-slot>
                 <ul class="list-disc space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-300">
+                    @if ($r['willRestore'] ?? 0)
+                        <li>{{ $r['willRestore'] }} row(s) match a <strong>previously-removed (soft-deleted)</strong> member — importing will <strong>restore</strong> and update them (counted under "Will update existing").</li>
+                    @endif
                     @if (count($r['missingRequiredHeaders']))
                         <li class="text-danger-600">Missing required column(s): <strong>{{ implode(', ', $r['missingRequiredHeaders']) }}</strong>.</li>
                     @endif

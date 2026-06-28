@@ -42,6 +42,7 @@ class MemberImportSanityChecker
             'blankMatchExisting' => 0,
             'willCreate' => 0,
             'willUpdate' => 0,
+            'willRestore' => 0,
             'groups' => [],
             'unmatchedGroups' => [],
         ];
@@ -93,13 +94,27 @@ class MemberImportSanityChecker
             $nameKey = mb_strtolower($first) . '|' . mb_strtolower($last);
             $phone = preg_replace('/\D+/', '', (string) ($row['phone_number'] ?? ''));
             if ($email !== '') {
-                isset($existingEmails[$email]) ? $report['willUpdate']++ : $report['willCreate']++;
+                if (isset($existingEmails[$email])) {
+                    $report['willUpdate']++;
+                    if ($existingEmails[$email]) {
+                        $report['willRestore']++;
+                    }
+                } else {
+                    $report['willCreate']++;
+                }
             } else {
-                $matched = ($phone !== '' && isset($existingNamePhone[$nameKey . '|' . $phone]))
-                    || isset($existingName[$nameKey]);
-                if ($matched) {
+                $matchTrashed = null;
+                if ($phone !== '' && isset($existingNamePhone[$nameKey . '|' . $phone])) {
+                    $matchTrashed = $existingNamePhone[$nameKey . '|' . $phone];
+                } elseif (isset($existingName[$nameKey])) {
+                    $matchTrashed = $existingName[$nameKey];
+                }
+                if ($matchTrashed !== null) {
                     $report['willUpdate']++;
                     $report['blankMatchExisting']++;
+                    if ($matchTrashed) {
+                        $report['willRestore']++;
+                    }
                 } else {
                     $report['willCreate']++;
                 }
@@ -156,19 +171,29 @@ class MemberImportSanityChecker
         $existingName = [];
         $existingNamePhone = [];
 
-        Member::query()
-            ->select(['first_name', 'last_name', 'email', 'phone_number'])
+        // Each map value is the matched member's trashed state (true = soft-deleted,
+        // so re-importing restores it). A LIVE member must win over a trashed
+        // namesake, so we AND the flags together — false (live) is sticky.
+        $note = function (array &$map, string $key, bool $trashed): void {
+            $map[$key] = array_key_exists($key, $map) ? ($map[$key] && $trashed) : $trashed;
+        };
+
+        // withTrashed(): the unique email index counts soft-deleted rows, so the
+        // importer matches (and restores) them rather than crashing on INSERT.
+        Member::withTrashed()
+            ->select(['first_name', 'last_name', 'email', 'phone_number', 'deleted_at'])
             ->cursor()
-            ->each(function (Member $member) use (&$existingEmails, &$existingName, &$existingNamePhone) {
+            ->each(function (Member $member) use (&$existingEmails, &$existingName, &$existingNamePhone, $note) {
+                $trashed = $member->trashed();
                 $email = mb_strtolower(trim((string) $member->email));
                 if ($email !== '') {
-                    $existingEmails[$email] = true;
+                    $note($existingEmails, $email, $trashed);
                 }
                 $nameKey = mb_strtolower(trim((string) $member->first_name)) . '|' . mb_strtolower(trim((string) $member->last_name));
-                $existingName[$nameKey] = true;
+                $note($existingName, $nameKey, $trashed);
                 $phone = preg_replace('/\D+/', '', (string) $member->phone_number);
                 if ($phone !== '') {
-                    $existingNamePhone[$nameKey . '|' . $phone] = true;
+                    $note($existingNamePhone, $nameKey . '|' . $phone, $trashed);
                 }
             });
 

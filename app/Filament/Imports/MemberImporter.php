@@ -85,12 +85,15 @@ class MemberImporter extends Importer
     {
         $email = trim((string) ($this->data['email'] ?? ''));
 
-        // Match on email case-insensitively: the DB unique index is
-        // case-insensitive, so a case-only difference would otherwise slip
-        // past firstOrNew() and crash with a duplicate-key error.
+        // Match on email case-insensitively AND including soft-deleted members:
+        // the unique index is case-insensitive and still counts trashed rows, so
+        // either difference would otherwise slip past and crash with a duplicate
+        // -key error. A trashed match is restored — re-importing a removed member
+        // means they are active again.
         if ($email !== '') {
-            return Member::whereRaw('LOWER(email) = ?', [mb_strtolower($email)])->first()
-                ?? new Member();
+            $member = Member::withTrashed()->whereRaw('LOWER(email) = ?', [mb_strtolower($email)])->first();
+
+            return $member ? $this->restoreIfTrashed($member) : new Member();
         }
 
         // No email: dedupe on name (plus phone when present) so re-running the
@@ -103,15 +106,31 @@ class MemberImporter extends Importer
             return new Member();
         }
 
-        $query = Member::query()
-            ->whereRaw('LOWER(first_name) = ?', [mb_strtolower($first)])
-            ->whereRaw('LOWER(last_name) = ?', [mb_strtolower($last)]);
+        $match = function (bool $withTrashed) use ($first, $last, $phone) {
+            $query = ($withTrashed ? Member::withTrashed() : Member::query())
+                ->whereRaw('LOWER(first_name) = ?', [mb_strtolower($first)])
+                ->whereRaw('LOWER(last_name) = ?', [mb_strtolower($last)]);
 
-        if ($phone !== '') {
-            $query->where('phone_number', $phone);
+            if ($phone !== '') {
+                $query->where('phone_number', $phone);
+            }
+
+            return $query->first();
+        };
+
+        // Prefer a live namesake; only fall back to (and restore) a trashed one.
+        $member = $match(false) ?? $match(true);
+
+        return $member ? $this->restoreIfTrashed($member) : new Member();
+    }
+
+    private function restoreIfTrashed(Member $member): Member
+    {
+        if ($member->trashed()) {
+            $member->restore();
         }
 
-        return $query->first() ?? new Member();
+        return $member;
     }
 
     public function afterSave(): void

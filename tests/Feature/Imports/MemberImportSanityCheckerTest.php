@@ -70,6 +70,38 @@ class MemberImportSanityCheckerTest extends TestCase
         $this->assertSame(1, $report['willCreate']);
     }
 
+    public function test_it_treats_a_soft_deleted_member_as_a_restore_not_a_create(): void
+    {
+        // A previously-removed member still occupies the unique email index, so
+        // re-importing them must reconcile (restore + update), not INSERT (1062).
+        $member = Member::factory()->create(['email' => 'gone@example.com']);
+        $member->delete();
+
+        $report = $this->check([
+            ['first_name' => 'Re', 'last_name' => 'Turn', 'email' => 'GONE@example.com', 'phone_number' => '', 'gender' => '', 'group' => ''],
+        ]);
+
+        $this->assertSame(0, $report['willCreate']);
+        $this->assertSame(1, $report['willUpdate']);
+        $this->assertSame(1, $report['willRestore']);
+    }
+
+    public function test_a_live_member_prevails_over_a_trashed_namesake_without_restoring(): void
+    {
+        // Blank-email row matching a LIVE member by name is a plain update, even
+        // if a trashed namesake also exists — don't count it as a restore.
+        $trashed = Member::factory()->create(['first_name' => 'Sam', 'last_name' => 'Twin', 'email' => 't1@example.com']);
+        $trashed->delete();
+        Member::factory()->create(['first_name' => 'Sam', 'last_name' => 'Twin', 'email' => 'live@example.com']);
+
+        $report = $this->check([
+            ['first_name' => 'Sam', 'last_name' => 'Twin', 'email' => '', 'phone_number' => '', 'gender' => '', 'group' => ''],
+        ]);
+
+        $this->assertSame(1, $report['willUpdate']);
+        $this->assertSame(0, $report['willRestore']);
+    }
+
     public function test_it_flags_invalid_emails_missing_names_and_bad_enums(): void
     {
         $report = $this->check([
