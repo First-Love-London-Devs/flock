@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NonMemberController;
 use App\Http\Controllers\Api\PushNotificationController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Web\HeadCountFormController;
 use App\Http\Controllers\Web\WelcomeFormController;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\InitializeLeaderScope;
@@ -41,6 +42,10 @@ Route::middleware([
     Route::get('/welcome', [WelcomeFormController::class, 'index'])->name('welcome.index');
     Route::get('/welcome/{stream}', [WelcomeFormController::class, 'show'])->name('welcome-form.show');
     Route::post('/welcome/{stream}', [WelcomeFormController::class, 'store'])->name('welcome-form.store');
+
+    // Public ushers head-count counter.
+    Route::get('/count-heads', [HeadCountFormController::class, 'show'])->name('count-heads.show');
+    Route::post('/count-heads', [HeadCountFormController::class, 'store'])->name('count-heads.store');
 });
 
 Route::middleware([
