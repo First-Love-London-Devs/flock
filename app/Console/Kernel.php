@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('birthdays:send')->dailyAt('07:00');
         $schedule->command('attendance:check-completion')->everyThirtyMinutes();
+        $schedule->command('attendance-counter:remind')->everyThirtyMinutes()->withoutOverlapping();
     }
 
     /**

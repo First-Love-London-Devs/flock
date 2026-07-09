@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Leader;
-use App\Models\PushToken;
 use App\Models\Group;
+use App\Models\LeaderRole;
+use App\Models\PushToken;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -29,7 +29,7 @@ class PushNotificationService
     public function sendToGroupLeaders(int $groupId, string $title, string $body, array $data = []): array
     {
         $group = Group::find($groupId);
-        if (!$group) {
+        if (! $group) {
             return ['success' => false, 'error' => 'Group not found'];
         }
 
@@ -37,7 +37,7 @@ class PushNotificationService
         $groupIds = collect([$groupId])->merge($group->descendants()->pluck('id'));
 
         // Get leaders for these groups via leader_roles
-        $leaderIds = \App\Models\LeaderRole::where('is_active', true)
+        $leaderIds = LeaderRole::where('is_active', true)
             ->whereIn('group_id', $groupIds)
             ->pluck('leader_id')
             ->unique()
@@ -65,7 +65,7 @@ class PushNotificationService
 
     public function sendToRoleHolders(string $roleSlug, string $title, string $body, array $data = []): array
     {
-        $leaderIds = \App\Models\LeaderRole::where('is_active', true)
+        $leaderIds = LeaderRole::where('is_active', true)
             ->whereHas('roleDefinition', fn ($q) => $q->where('slug', $roleSlug))
             ->pluck('leader_id')
             ->unique()
@@ -78,6 +78,38 @@ class PushNotificationService
 
         if (empty($tokens)) {
             return ['success' => false, 'error' => 'No push tokens found for role holders'];
+        }
+
+        return $this->sendToTokens($tokens, $title, $body, $data);
+    }
+
+    /**
+     * Holders of a role scoped to a single group and its subtree (e.g. the
+     * ushers of one Stream, rather than every holder of that role tenant-wide).
+     */
+    public function sendToRoleHoldersInGroup(string $roleSlug, int $groupId, string $title, string $body, array $data = []): array
+    {
+        $group = Group::find($groupId);
+        if (! $group) {
+            return ['success' => false, 'error' => 'Group not found'];
+        }
+
+        $groupIds = collect([$groupId])->merge($group->descendantIds())->unique()->toArray();
+
+        $leaderIds = LeaderRole::where('is_active', true)
+            ->whereIn('group_id', $groupIds)
+            ->whereHas('roleDefinition', fn ($q) => $q->where('slug', $roleSlug))
+            ->pluck('leader_id')
+            ->unique()
+            ->toArray();
+
+        $tokens = PushToken::whereIn('leader_id', $leaderIds)
+            ->where('is_active', true)
+            ->pluck('token')
+            ->toArray();
+
+        if (empty($tokens)) {
+            return ['success' => false, 'error' => 'No push tokens found for role holders in group'];
         }
 
         return $this->sendToTokens($tokens, $title, $body, $data);
@@ -98,13 +130,16 @@ class PushNotificationService
 
             if ($response->successful()) {
                 Log::info('Push notifications sent', ['count' => count($tokens)]);
+
                 return ['success' => true, 'sent' => count($tokens)];
             }
 
             Log::error('Push notification failed', ['response' => $response->body()]);
+
             return ['success' => false, 'error' => $response->body()];
         } catch (\Exception $e) {
             Log::error('Push notification exception', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
