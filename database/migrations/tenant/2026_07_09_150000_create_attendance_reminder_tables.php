@@ -8,6 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Self-heal: an earlier run created these tables then failed on a
+        // too-long index name, leaving them behind (empty) without recording
+        // the migration. Drop first so a re-run recreates them cleanly.
+        Schema::dropIfExists('attendance_counter_notifications');
+        Schema::dropIfExists('attendance_schedules');
+
         // Admin-defined service windows. During a window the scheduler nudges
         // the chosen role's holders to submit the head count, per Stream.
         Schema::create('attendance_schedules', function (Blueprint $table) {
@@ -33,7 +39,8 @@ return new class extends Migration
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
 
-            $table->unique(['attendance_schedule_id', 'notification_date']);
+            // Explicit short name — the auto-generated one exceeds MySQL's 64-char limit.
+            $table->unique(['attendance_schedule_id', 'notification_date'], 'acn_schedule_date_unique');
         });
     }
 
