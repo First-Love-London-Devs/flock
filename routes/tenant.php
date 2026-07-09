@@ -17,7 +17,7 @@ use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NonMemberController;
 use App\Http\Controllers\Api\PushNotificationController;
 use App\Http\Controllers\Api\SettingController;
-use App\Http\Controllers\Web\HeadCountFormController;
+use App\Http\Controllers\Web\AttendanceCounterController;
 use App\Http\Controllers\Web\WelcomeFormController;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\InitializeLeaderScope;
@@ -43,9 +43,11 @@ Route::middleware([
     Route::get('/welcome/{stream}', [WelcomeFormController::class, 'show'])->name('welcome-form.show');
     Route::post('/welcome/{stream}', [WelcomeFormController::class, 'store'])->name('welcome-form.store');
 
-    // Public ushers head-count counter.
-    Route::get('/count-heads', [HeadCountFormController::class, 'show'])->name('count-heads.show');
-    Route::post('/count-heads', [HeadCountFormController::class, 'store'])->name('count-heads.store');
+    // Public ushers attendance counter (kiosk tap-counter), per Stream.
+    Route::get('/attendance-counter', [AttendanceCounterController::class, 'index'])->name('attendance-counter.index');
+    Route::get('/attendance-counter/{stream}', [AttendanceCounterController::class, 'show'])->name('attendance-counter.show');
+    Route::post('/attendance-counter/{stream}/increment', [AttendanceCounterController::class, 'increment'])->name('attendance-counter.increment');
+    Route::post('/attendance-counter/{stream}/counts', [AttendanceCounterController::class, 'counts'])->name('attendance-counter.counts');
 });
 
 Route::middleware([

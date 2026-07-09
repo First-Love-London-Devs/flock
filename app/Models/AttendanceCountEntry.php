@@ -5,27 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class HeadCount extends Model
+class AttendanceCountEntry extends Model
 {
     protected $fillable = [
         'group_id',
         'date',
-        'total_attendance',
-        'first_timer_count',
-        'visitor_count',
-        'submitter_name',
-        'notes',
+        'device_id',
+        'category',
     ];
 
     protected $casts = [
         'date' => 'date',
-        'total_attendance' => 'integer',
-        'first_timer_count' => 'integer',
-        'visitor_count' => 'integer',
     ];
 
     /**
-     * The bacenta (attendance-tracking group) this count belongs to.
+     * The stream (or other group) this tap was recorded against.
      */
     public function group(): BelongsTo
     {
