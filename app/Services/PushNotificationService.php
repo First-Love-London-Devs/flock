@@ -96,8 +96,11 @@ class PushNotificationService
 
         $groupIds = collect([$groupId])->merge($group->descendantIds())->unique()->toArray();
 
+        // Include holders scoped to this stream's subtree, AND church-wide
+        // holders of the role (LeaderRole with a null group_id — e.g. a Bishop),
+        // who hold the role for every stream and so qualify for this one too.
         $leaderIds = LeaderRole::where('is_active', true)
-            ->whereIn('group_id', $groupIds)
+            ->where(fn ($q) => $q->whereIn('group_id', $groupIds)->orWhereNull('group_id'))
             ->whereHas('roleDefinition', fn ($q) => $q->where('slug', $roleSlug))
             ->pluck('leader_id')
             ->unique()

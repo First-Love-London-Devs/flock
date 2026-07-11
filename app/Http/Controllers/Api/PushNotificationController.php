@@ -28,6 +28,17 @@ class PushNotificationController extends Controller
             ]
         );
 
+        // A device's Expo token can rotate (reinstall, restore, OS refresh),
+        // leaving the leader with several active rows for the same phone so
+        // every push arrives once per stale token. Retire the leader's other
+        // tokens on this device so only the freshest one stays active.
+        if ($request->leader_id) {
+            PushToken::where('leader_id', $request->leader_id)
+                ->where('device_type', $request->device_type)
+                ->where('id', '!=', $pushToken->id)
+                ->update(['is_active' => false]);
+        }
+
         return response()->json(['success' => true, 'data' => $pushToken]);
     }
 
