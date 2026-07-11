@@ -18,9 +18,11 @@ class AttendanceReminderService
     public function __construct(private PushNotificationService $push) {}
 
     /**
-     * Fire any attendance-counter reminders that are due right now for the
-     * current tenant. Sends at most one push per schedule per day, and only
-     * while that Stream's counter is still empty for today.
+     * Fire any attendance-counter summaries that are due right now for the
+     * current tenant. Once a service window has ended, the role holders get a
+     * single push with the head count that was taken for that service. Sends
+     * at most one push per schedule per day, and only when a count was
+     * actually recorded (an empty service produces no notification).
      *
      * @return array{sent:int, skipped:int}
      */
@@ -45,25 +47,14 @@ class AttendanceReminderService
             ->get();
 
         foreach ($schedules as $schedule) {
-            // Inside the window?
-            $start = $this->toMinutes($schedule->start_time);
+            // Only summarise once the service window has ended.
             $end = $this->toMinutes($schedule->end_time);
-            if ($start === null || $end === null || $nowMinutes < $start || $nowMinutes > $end) {
+            if ($end === null || $nowMinutes < $end) {
                 continue;
             }
 
-            // Already nudged for this service today?
+            // Already summarised (or evaluated) for this service today?
             if (AttendanceCounterNotification::hasBeenSent($schedule->id, $today)) {
-                $skipped++;
-
-                continue;
-            }
-
-            // Counter already used today? Then there is nothing to remind about.
-            $counter = AttendanceCounter::where('group_id', $schedule->stream_group_id)
-                ->whereDate('date', $today)
-                ->first();
-            if ($counter && $counter->total_count > 0) {
                 $skipped++;
 
                 continue;
@@ -71,6 +62,22 @@ class AttendanceReminderService
 
             $role = $schedule->roleDefinition;
             if (! $role) {
+                // Record that we evaluated it so we don't re-check every tick.
+                $this->stampLedger($schedule, $today, 'skipped');
+                $skipped++;
+
+                continue;
+            }
+
+            $counter = AttendanceCounter::where('group_id', $schedule->stream_group_id)
+                ->whereDate('date', $today)
+                ->first();
+            $total = $counter ? $counter->total_count : 0;
+
+            // Nothing was counted for this service — no summary to send. Stamp
+            // the ledger so the empty service isn't re-checked on later ticks.
+            if ($total <= 0) {
+                $this->stampLedger($schedule, $today, 'skipped');
                 $skipped++;
 
                 continue;
@@ -78,31 +85,44 @@ class AttendanceReminderService
 
             $streamName = $schedule->streamGroup?->name ?? 'Your service';
 
+            $body = sprintf(
+                '%s: %d counted. First-time %d, returning %d, regular %d, visitor %d.',
+                $streamName,
+                $total,
+                $counter->first_time_count,
+                $counter->returning_count,
+                $counter->regular_count,
+                $counter->visitor_count,
+            );
+
             $result = $this->push->sendToRoleHoldersInGroup(
                 $role->slug,
                 $schedule->stream_group_id,
-                'Time to count 🙌',
-                $streamName.' is on now. Log today\'s head count in the attendance counter.',
+                'Attendance summary 📊',
+                $body,
                 [
-                    'type' => 'attendance_counter_reminder',
+                    'type' => 'attendance_summary',
                     'streamGroupId' => $schedule->stream_group_id,
                 ],
             );
 
-            // Stamp the ledger whether or not anyone had a token, so we make one
-            // attempt per service window and never re-fire on the next tick.
-            AttendanceCounterNotification::create([
-                'attendance_schedule_id' => $schedule->id,
-                'stream_group_id' => $schedule->stream_group_id,
-                'notification_date' => $today,
-                'status' => ($result['success'] ?? false) ? 'sent' : 'failed',
-                'sent_at' => now(),
-            ]);
+            $this->stampLedger($schedule, $today, ($result['success'] ?? false) ? 'sent' : 'failed');
 
             ($result['success'] ?? false) ? $sent++ : $skipped++;
         }
 
         return ['sent' => $sent, 'skipped' => $skipped];
+    }
+
+    private function stampLedger(AttendanceSchedule $schedule, string $today, string $status): void
+    {
+        AttendanceCounterNotification::create([
+            'attendance_schedule_id' => $schedule->id,
+            'stream_group_id' => $schedule->stream_group_id,
+            'notification_date' => $today,
+            'status' => $status,
+            'sent_at' => now(),
+        ]);
     }
 
     /**

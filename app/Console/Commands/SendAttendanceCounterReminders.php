@@ -10,14 +10,14 @@ class SendAttendanceCounterReminders extends Command
 {
     protected $signature = 'attendance-counter:remind';
 
-    protected $description = 'Nudge role holders to submit head counts during their service windows';
+    protected $description = 'Send head-count summaries to role holders once their service windows end';
 
     public function handle(AttendanceReminderService $service): int
     {
         // Already inside a tenant: just process it.
         if (tenant()) {
             $results = $service->sendDueReminders();
-            $this->info("Attendance reminders - sent: {$results['sent']}, skipped: {$results['skipped']}");
+            $this->info("Attendance summaries - sent: {$results['sent']}, skipped: {$results['skipped']}");
 
             return self::SUCCESS;
         }
