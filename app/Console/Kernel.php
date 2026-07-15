@@ -12,7 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('birthdays:send')->dailyAt('07:00');
+        // Runs hourly; the command itself fires per tenant only at 07:00 in that
+        // church's own local timezone (see SendBirthdayReminders).
+        $schedule->command('birthdays:send')->hourly();
         $schedule->command('attendance:check-completion')->everyThirtyMinutes();
         $schedule->command('attendance-counter:remind')->everyThirtyMinutes()->withoutOverlapping();
     }
