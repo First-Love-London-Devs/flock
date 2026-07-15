@@ -9,12 +9,18 @@ use Illuminate\Support\Facades\Schema;
 
 class AttendanceReminderService
 {
-    /**
-     * Service windows are entered in UK local time; the app default tz is UTC.
-     */
-    private const TIMEZONE = 'Europe/London';
-
     public function __construct(private PushNotificationService $push) {}
+
+    /**
+     * The current church's local timezone. Service windows are entered in the
+     * church's own local time (e.g. a Belgian church uses Europe/Brussels), so
+     * we compare "now" in that zone rather than a hardcoded one. Falls back to
+     * the app-wide church default when there is no tenant context.
+     */
+    private function timezone(): string
+    {
+        return tenant()?->getTimezone() ?? config('church.timezone', 'Europe/London');
+    }
 
     /**
      * Fire attendance-counter summaries that are due right now for the current
@@ -32,7 +38,7 @@ class AttendanceReminderService
             return ['sent' => 0, 'skipped' => 0];
         }
 
-        $now = Carbon::now(self::TIMEZONE);
+        $now = Carbon::now($this->timezone());
         $today = $now->toDateString();
         $nowMinutes = $now->hour * 60 + $now->minute;
 

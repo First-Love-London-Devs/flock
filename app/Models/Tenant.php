@@ -50,6 +50,16 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return $this->is_active;
     }
 
+    /**
+     * The church's local IANA timezone (e.g. 'Europe/Brussels'). Stored in the
+     * tenant's data column; falls back to the app-wide church default. Used to
+     * interpret admin-entered times such as attendance service windows.
+     */
+    public function getTimezone(): string
+    {
+        return $this->timezone ?: config('church.timezone', 'Europe/London');
+    }
+
     public function suspend(): void
     {
         $this->update(['is_active' => false]);
