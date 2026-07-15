@@ -125,6 +125,7 @@ Route::middleware([
         Route::prefix('bishop')->middleware([CheckRole::class.':bishop'])->group(function () {
             Route::get('governors', [BishopController::class, 'governors']);
             Route::get('attendance', [BishopController::class, 'attendance']);
+            Route::get('attendance-counter', [BishopController::class, 'attendanceCounter']);
             Route::get('summary', [BishopController::class, 'summary']);
             Route::get('members', [BishopController::class, 'members']);
             Route::get('governors/{govId}/dashboard', [BishopController::class, 'governorDashboard'])->whereNumber('govId');
