@@ -215,4 +215,26 @@ class UnderstandingCampaignAssignmentTest extends TestCase
         // The prior assignment must be untouched.
         $this->assertDatabaseHas('understanding_campaigns', ['id' => $record->id, 'allocated_group_id' => $b1->id]);
     }
+
+    public function test_assignable_groups_forbidden_without_the_role(): void
+    {
+        $leader = Leader::factory()->create();
+        $this->actingAs($leader, 'sanctum')
+            ->getJson('/api/v1/understanding-campaigns/assignable-groups')
+            ->assertForbidden();
+    }
+
+    public function test_assign_forbidden_without_the_role(): void
+    {
+        // A real record must exist so the 403 comes from CheckRole (route gate),
+        // not from a missing record; the role gate runs before the controller.
+        $gs = $this->gatheringService();
+        $b1 = $this->bacenta($gs, 'B1');
+        $record = $this->record($b1);
+        $leader = Leader::factory()->create();
+
+        $this->actingAs($leader, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", ['allocated_group_id' => $b1->id])
+            ->assertForbidden();
+    }
 }
