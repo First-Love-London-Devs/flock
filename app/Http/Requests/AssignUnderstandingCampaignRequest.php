@@ -36,6 +36,7 @@ class AssignUnderstandingCampaignRequest extends FormRequest
 
         return [
             'allocated_group_id' => [
+                'present',
                 'nullable',
                 'integer',
                 // Target must be a group inside the subtree ...

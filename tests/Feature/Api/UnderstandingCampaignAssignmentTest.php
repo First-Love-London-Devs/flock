@@ -200,4 +200,19 @@ class UnderstandingCampaignAssignmentTest extends TestCase
             ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", ['allocated_group_id' => $nonBacenta->id])
             ->assertStatus(422);
     }
+
+    public function test_missing_allocated_group_id_key_is_rejected_and_does_not_change_state(): void
+    {
+        $gs = $this->gatheringService();
+        $b1 = $this->bacenta($gs, 'B1');
+        $record = $this->record($b1, ['allocated_group_id' => $b1->id]);
+        $rep = $this->repFor($gs);
+
+        $this->actingAs($rep, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", [])
+            ->assertStatus(422);
+
+        // The prior assignment must be untouched.
+        $this->assertDatabaseHas('understanding_campaigns', ['id' => $record->id, 'allocated_group_id' => $b1->id]);
+    }
 }
