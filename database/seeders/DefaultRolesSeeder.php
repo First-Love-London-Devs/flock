@@ -31,6 +31,10 @@ class DefaultRolesSeeder extends Seeder
             ['name' => 'Ministry Head', 'slug' => 'ministry-head', 'permission_level' => 70, 'applies_to_group_type_id' => null],
             // Flexible — attaches to any group; scope resolved at runtime via BFS.
             ['name' => 'Admin', 'slug' => 'admin', 'permission_level' => 50, 'applies_to_group_type_id' => null],
+            // Field rep who assigns first-timers and converts to a bacenta.
+            // applies_to null so it attaches to whichever group is the tenant's
+            // gathering service - scope is resolved at runtime from that group.
+            ['name' => 'Understanding Campaign', 'slug' => 'understanding-campaign', 'permission_level' => 40, 'applies_to_group_type_id' => null],
         ];
 
         foreach ($roles as $role) {
