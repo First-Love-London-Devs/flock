@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NonMemberController;
 use App\Http\Controllers\Api\PushNotificationController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\UnderstandingCampaignController;
 use App\Http\Controllers\Web\AttendanceCounterController;
 use App\Http\Controllers\Web\WelcomeFormController;
 use App\Http\Middleware\CheckRole;
@@ -148,6 +149,12 @@ Route::middleware([
             Route::post('bacentas', [AdminController::class, 'createBacenta']);
             Route::put('bacentas/{id}', [AdminController::class, 'updateBacenta'])->whereNumber('id');
             Route::delete('bacentas/{id}', [AdminController::class, 'deactivateBacenta'])->whereNumber('id');
+        });
+
+        Route::prefix('understanding-campaigns')->middleware([CheckRole::class.':understanding-campaign'])->group(function () {
+            Route::get('/', [UnderstandingCampaignController::class, 'index']);
+            Route::get('/assignable-groups', [UnderstandingCampaignController::class, 'assignableGroups']);
+            Route::patch('/{id}/assign', [UnderstandingCampaignController::class, 'assign'])->whereNumber('id');
         });
     });
 });
