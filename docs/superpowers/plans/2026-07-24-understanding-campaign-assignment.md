@@ -195,10 +195,13 @@ class UnderstandingCampaignAssignmentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->ucRole = RoleDefinition::create([
-            'name' => 'Understanding Campaign', 'slug' => 'understanding-campaign',
-            'permission_level' => 40, 'applies_to_group_type_id' => null, 'is_active' => true,
-        ]);
+        // The tenant seed migration already inserts this role under
+        // RefreshDatabase, so firstOrCreate (not create) avoids a unique-slug
+        // collision while still giving the test the row it needs.
+        $this->ucRole = RoleDefinition::firstOrCreate(
+            ['slug' => 'understanding-campaign'],
+            ['name' => 'Understanding Campaign', 'permission_level' => 40, 'applies_to_group_type_id' => null, 'is_active' => true],
+        );
         $this->gsType = GroupType::create(['name' => 'Gathering Service', 'slug' => 'gs', 'level' => 1, 'tracks_attendance' => false, 'is_active' => true]);
         $this->bacentaType = GroupType::create(['name' => 'Bacenta', 'slug' => 'bacenta', 'level' => 2, 'tracks_attendance' => true, 'is_active' => true]);
     }
