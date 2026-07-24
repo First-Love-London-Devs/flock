@@ -128,4 +128,76 @@ class UnderstandingCampaignAssignmentTest extends TestCase
             ->getJson('/api/v1/understanding-campaigns')
             ->assertForbidden();
     }
+
+    public function test_rep_can_assign_an_in_scope_record_to_an_in_scope_bacenta(): void
+    {
+        $gs = $this->gatheringService();
+        $b1 = $this->bacenta($gs, 'B1');
+        $target = $this->bacenta($gs, 'Target');
+        $record = $this->record($b1);
+        $rep = $this->repFor($gs);
+
+        $res = $this->actingAs($rep, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", ['allocated_group_id' => $target->id]);
+
+        $res->assertOk();
+        $this->assertSame($target->id, $res->json('data.allocated_group.id'));
+        $this->assertDatabaseHas('understanding_campaigns', ['id' => $record->id, 'allocated_group_id' => $target->id]);
+    }
+
+    public function test_null_clears_the_assignment(): void
+    {
+        $gs = $this->gatheringService();
+        $b1 = $this->bacenta($gs, 'B1');
+        $record = $this->record($b1, ['allocated_group_id' => $b1->id]);
+        $rep = $this->repFor($gs);
+
+        $this->actingAs($rep, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", ['allocated_group_id' => null])
+            ->assertOk();
+        $this->assertDatabaseHas('understanding_campaigns', ['id' => $record->id, 'allocated_group_id' => null]);
+    }
+
+    public function test_cannot_assign_a_record_outside_the_reps_subtree(): void
+    {
+        $gs = $this->gatheringService('GS A');
+        $target = $this->bacenta($gs, 'Target');
+        $rep = $this->repFor($gs);
+
+        $otherGs = $this->gatheringService('GS B');
+        $otherBacenta = $this->bacenta($otherGs, 'Other');
+        $foreign = $this->record($otherBacenta);
+
+        $this->actingAs($rep, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$foreign->id}/assign", ['allocated_group_id' => $target->id])
+            ->assertForbidden();
+    }
+
+    public function test_cannot_assign_into_a_group_outside_the_subtree(): void
+    {
+        $gs = $this->gatheringService('GS A');
+        $b1 = $this->bacenta($gs, 'B1');
+        $record = $this->record($b1);
+        $rep = $this->repFor($gs);
+
+        $otherGs = $this->gatheringService('GS B');
+        $foreignBacenta = $this->bacenta($otherGs, 'Foreign');
+
+        $this->actingAs($rep, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", ['allocated_group_id' => $foreignBacenta->id])
+            ->assertStatus(422);
+    }
+
+    public function test_cannot_assign_into_a_non_tracks_attendance_group(): void
+    {
+        $gs = $this->gatheringService();
+        $b1 = $this->bacenta($gs, 'B1');
+        $record = $this->record($b1);
+        $nonBacenta = Group::create(['name' => 'Sub GS', 'group_type_id' => $this->gsType->id, 'parent_id' => $gs->id]);
+        $rep = $this->repFor($gs);
+
+        $this->actingAs($rep, 'sanctum')
+            ->patchJson("/api/v1/understanding-campaigns/{$record->id}/assign", ['allocated_group_id' => $nonBacenta->id])
+            ->assertStatus(422);
+    }
 }

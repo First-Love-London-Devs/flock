@@ -154,6 +154,7 @@ Route::middleware([
         Route::prefix('understanding-campaigns')->middleware([CheckRole::class.':understanding-campaign'])->group(function () {
             Route::get('/', [UnderstandingCampaignController::class, 'index']);
             Route::get('/assignable-groups', [UnderstandingCampaignController::class, 'assignableGroups']);
+            Route::patch('/{id}/assign', [UnderstandingCampaignController::class, 'assign'])->whereNumber('id');
         });
     });
 });

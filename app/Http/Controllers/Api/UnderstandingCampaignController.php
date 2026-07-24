@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AssignUnderstandingCampaignRequest;
 use App\Models\Group;
 use App\Models\UnderstandingCampaign;
 use Illuminate\Http\JsonResponse;
@@ -46,20 +47,19 @@ class UnderstandingCampaignController extends Controller
             $query->whereNotNull('allocated_group_id');
         }
 
-        $data = $query->get()->map(fn (UnderstandingCampaign $r) => [
-            'id' => $r->id,
-            'first_name' => $r->first_name,
-            'last_name' => $r->last_name,
-            'first_time' => (bool) $r->first_time,
-            're_dedicating' => (bool) $r->re_dedicating,
-            'attended_on' => optional($r->attended_on)->toDateString(),
-            'who_invited' => $r->who_invited,
-            'phone_number' => $r->phone_number,
-            'stream' => $r->stream ? ['id' => $r->stream->id, 'name' => $r->stream->name] : null,
-            'allocated_group' => $r->allocatedGroup ? ['id' => $r->allocatedGroup->id, 'name' => $r->allocatedGroup->name] : null,
-        ]);
+        $data = $query->get()->map(fn (UnderstandingCampaign $r) => $this->present($r));
 
         return response()->json(['success' => true, 'data' => $data]);
+    }
+
+    public function assign(AssignUnderstandingCampaignRequest $request, int $id): JsonResponse
+    {
+        $scopeIds = $this->resolveScopeGroup($request)->allGroupIds();
+        $record = UnderstandingCampaign::whereIn('stream_id', $scopeIds)->findOrFail($id);
+        $record->update(['allocated_group_id' => $request->validated()['allocated_group_id'] ?? null]);
+        $record->load(['stream:id,name', 'allocatedGroup:id,name']);
+
+        return response()->json(['success' => true, 'data' => $this->present($record)]);
     }
 
     public function assignableGroups(Request $request): JsonResponse
@@ -74,5 +74,21 @@ class UnderstandingCampaignController extends Controller
             ->map(fn (Group $g) => ['id' => $g->id, 'name' => $g->name]);
 
         return response()->json(['success' => true, 'data' => $groups]);
+    }
+
+    private function present(UnderstandingCampaign $r): array
+    {
+        return [
+            'id' => $r->id,
+            'first_name' => $r->first_name,
+            'last_name' => $r->last_name,
+            'first_time' => (bool) $r->first_time,
+            're_dedicating' => (bool) $r->re_dedicating,
+            'attended_on' => optional($r->attended_on)->toDateString(),
+            'who_invited' => $r->who_invited,
+            'phone_number' => $r->phone_number,
+            'stream' => $r->stream ? ['id' => $r->stream->id, 'name' => $r->stream->name] : null,
+            'allocated_group' => $r->allocatedGroup ? ['id' => $r->allocatedGroup->id, 'name' => $r->allocatedGroup->name] : null,
+        ];
     }
 }
