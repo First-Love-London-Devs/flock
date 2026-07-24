@@ -106,6 +106,13 @@ class UnderstandingCampaignAssignmentTest extends TestCase
         $bacenta = $this->bacenta($gs, 'Real Bacenta');
         // a non-tracks_attendance child should be excluded
         $subService = Group::create(['name' => 'Sub', 'group_type_id' => $this->gsType->id, 'parent_id' => $gs->id]);
+
+        // a tracks_attendance bacenta in a DIFFERENT gathering service should
+        // also be excluded, proving the endpoint scopes to the caller's
+        // subtree and not just to tracks_attendance groups anywhere.
+        $otherGs = $this->gatheringService('GS Other');
+        $otherBacenta = $this->bacenta($otherGs, 'Other Bacenta');
+
         $rep = $this->repFor($gs);
 
         $res = $this->actingAs($rep, 'sanctum')->getJson('/api/v1/understanding-campaigns/assignable-groups');
