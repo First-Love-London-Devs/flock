@@ -10,7 +10,7 @@ class SendAttendanceCounterReminders extends Command
 {
     protected $signature = 'attendance-counter:remind';
 
-    protected $description = 'Send a running head-count summary to role holders every 30 min while a service window is open';
+    protected $description = 'Send a running head-count summary to role holders every 30 min while an attendance-day count window (or scheduled window) is open';
 
     public function handle(AttendanceReminderService $service): int
     {
