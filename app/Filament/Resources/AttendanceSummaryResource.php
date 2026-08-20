@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+
 use App\Filament\Resources\AttendanceSummaryResource\Pages;
 use App\Filament\Resources\AttendanceSummaryResource\RelationManagers;
 use App\Models\AttendanceSummary;
@@ -13,6 +15,13 @@ use Filament\Tables\Table;
 
 class AttendanceSummaryResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    protected static function scopeColumn(): ?string
+    {
+        return 'group_id';
+    }
+
     protected static ?string $model = AttendanceSummary::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';

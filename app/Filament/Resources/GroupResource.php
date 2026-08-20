@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+
 use App\Filament\Resources\GroupResource\Pages;
 use App\Models\Group;
 use Filament\Forms;
@@ -12,6 +16,16 @@ use Filament\Tables\Table;
 
 class GroupResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    /* A group is its own link to the tree, so match on the primary key. */
+    protected static function applyGroupScope(Builder $query): Builder
+    {
+        $ids = User::currentScopeIds();
+
+        return $ids === null ? $query : $query->whereIn('groups.id', $ids);
+    }
+
     protected static ?string $model = Group::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';

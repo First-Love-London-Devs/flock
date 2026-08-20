@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+
 use App\Filament\Resources\AttendanceCounterResource\Pages;
 use App\Models\AttendanceCounter;
 use Filament\Forms;
@@ -12,6 +14,13 @@ use Filament\Tables\Table;
 
 class AttendanceCounterResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    protected static function scopeColumn(): ?string
+    {
+        return 'group_id';
+    }
+
     protected static ?string $model = AttendanceCounter::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-calculator';

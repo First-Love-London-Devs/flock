@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\User;
+
 use App\Filament\Resources\ImportResource\Pages;
 use App\Filament\Resources\ImportResource\RelationManagers;
 use Filament\Actions\Imports\Models\Import;
@@ -11,6 +13,15 @@ use Filament\Tables\Table;
 
 class ImportResource extends Resource
 {
+    /* Shared configuration. A country admin must not edit what every other
+       country depends on, and hiding it is the honest version of that: it
+       disappears from navigation rather than appearing and then refusing.
+       The group-wide admin (no scope) still manages it. */
+    public static function canViewAny(): bool
+    {
+        return User::currentScopeIds() === null;
+    }
+
     protected static ?string $model = Import::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';

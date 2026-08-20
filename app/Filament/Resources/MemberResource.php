@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+
 use App\Filament\Resources\MemberResource\Pages;
 use App\Models\Group;
 use App\Models\Leader;
@@ -22,6 +26,22 @@ use Illuminate\Support\Facades\DB;
 
 class MemberResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    /* Members reach a group through the group_member pivot, so one overlap
+       is enough. A member in no group at all is deliberately NOT shown to a
+       country admin: they belong to no country, and the unscoped group-wide
+       admin still sees them, so nobody loses the ability to assign them. */
+    protected static function applyGroupScope(Builder $query): Builder
+    {
+        $ids = User::currentScopeIds();
+
+        return $ids === null ? $query : $query->whereHas(
+            'groups',
+            fn ($q) => $q->whereIn('groups.id', $ids),
+        );
+    }
+
     protected static ?string $model = Member::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';

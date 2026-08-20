@@ -2,6 +2,8 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\User;
+
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Schema;
@@ -23,11 +25,15 @@ class AttendanceTrendsChart extends ChartWidget
                 $labels->push($weekStart->format('M d'));
             }
         } else {
+            $ids = User::currentScopeIds();
+
             for ($i = 7; $i >= 0; $i--) {
                 $weekStart = Carbon::now()->subWeeks($i)->startOfWeek();
                 $weekEnd = $weekStart->copy()->endOfWeek();
 
+                // Same reason as the stats above: a total is a leak too.
                 $total = \App\Models\AttendanceSummary::whereBetween('date', [$weekStart, $weekEnd])
+                    ->when($ids !== null, fn ($q) => $q->whereIn('group_id', $ids))
                     ->sum('total_attendance');
 
                 $weeks->push($total);

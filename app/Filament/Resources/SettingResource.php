@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\User;
+
 use App\Filament\Resources\SettingResource\Pages;
 use App\Models\Setting;
 use Filament\Forms;
@@ -12,6 +14,15 @@ use Filament\Tables\Table;
 
 class SettingResource extends Resource
 {
+    /* Shared configuration. A country admin must not edit what every other
+       country depends on, and hiding it is the honest version of that: it
+       disappears from navigation rather than appearing and then refusing.
+       The group-wide admin (no scope) still manages it. */
+    public static function canViewAny(): bool
+    {
+        return User::currentScopeIds() === null;
+    }
+
     protected static ?string $model = Setting::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+
 use App\Filament\Resources\NonMemberResource\Pages;
 use App\Models\Attendance;
 use App\Models\Member;
@@ -16,6 +18,13 @@ use Illuminate\Support\Facades\DB;
 
 class NonMemberResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    protected static function scopeColumn(): ?string
+    {
+        return 'group_id';
+    }
+
     protected static ?string $model = NonMember::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';

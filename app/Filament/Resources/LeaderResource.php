@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+
 use App\Filament\Resources\LeaderResource\Pages;
 use App\Models\Leader;
 use Filament\Forms;
@@ -12,6 +16,20 @@ use Filament\Tables\Table;
 
 class LeaderResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    /* A leader belongs to the tree through the groups their active roles
+       are attached to. */
+    protected static function applyGroupScope(Builder $query): Builder
+    {
+        $ids = User::currentScopeIds();
+
+        return $ids === null ? $query : $query->whereHas(
+            'leaderRoles',
+            fn ($q) => $q->where('is_active', true)->whereIn('group_id', $ids),
+        );
+    }
+
     protected static ?string $model = Leader::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';

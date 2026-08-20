@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+
 use App\Filament\Resources\UnderstandingCampaignResource\Pages;
 use App\Models\UnderstandingCampaign;
 use Filament\Forms;
@@ -12,6 +14,13 @@ use Filament\Tables\Table;
 
 class UnderstandingCampaignResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    protected static function scopeColumn(): ?string
+    {
+        return 'allocated_group_id';
+    }
+
     protected static ?string $model = UnderstandingCampaign::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';

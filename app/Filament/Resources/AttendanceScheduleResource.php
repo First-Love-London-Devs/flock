@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToAdminGroup;
+
 use App\Filament\Resources\AttendanceScheduleResource\Pages;
 use App\Models\AttendanceSchedule;
 use Filament\Forms;
@@ -12,6 +14,13 @@ use Filament\Tables\Table;
 
 class AttendanceScheduleResource extends Resource
 {
+    use ScopesToAdminGroup;
+
+    protected static function scopeColumn(): ?string
+    {
+        return 'stream_group_id';
+    }
+
     protected static ?string $model = AttendanceSchedule::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-bell-alert';
