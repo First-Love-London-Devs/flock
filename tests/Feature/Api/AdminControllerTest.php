@@ -204,6 +204,43 @@ class AdminControllerTest extends TestCase
         $this->assertFalse($this->bacenta->fresh()->is_active);
     }
 
+    /* Reassignment validates its group ids with exists:groups,id, which
+       only proves the group is real. Reading a member out of scope and
+       moving one out of scope are the same hole, so both are covered. */
+    public function test_cannot_reassign_a_member_into_an_out_of_scope_group(): void
+    {
+        $member = $this->makeMember($this->bacenta);
+        $otherBacenta = $this->makeCellGroup($this->makeConstituency('X'));
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/v1/admin/members/{$member->id}/groups", [
+                'bacenta_id' => $otherBacenta->id,
+            ])
+            ->assertStatus(403);
+
+        $this->assertDatabaseMissing('group_member', [
+            'member_id' => $member->id,
+            'group_id'  => $otherBacenta->id,
+        ]);
+    }
+
+    public function test_can_reassign_a_member_within_scope(): void
+    {
+        $member = $this->makeMember($this->bacenta);
+        $destination = $this->makeCellGroup($this->constituency, null, 'Second Bacenta');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/v1/admin/members/{$member->id}/groups", [
+                'bacenta_id' => $destination->id,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('group_member', [
+            'member_id' => $member->id,
+            'group_id'  => $destination->id,
+        ]);
+    }
+
     public function test_cannot_access_out_of_scope_bacenta(): void
     {
         $other = $this->makeCellGroup($this->makeConstituency('X'));

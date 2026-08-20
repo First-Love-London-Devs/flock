@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\GroupType;
 use App\Models\Member;
+use App\Services\DomainScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class AdminController extends Controller
 {
@@ -25,16 +27,51 @@ class AdminController extends Controller
         return $role->group_id;
     }
 
+    /**
+     * Every group this admin may act on: their admin group and everything
+     * under it, narrowed to the country the request came in through.
+     *
+     * These endpoints queried the whole tenant between June and now. That
+     * was introduced to fix a real complaint — an admin sitting on a
+     * gathering service could not see the wider church — but removing the
+     * scope was the wrong lever for it; the right one is to attach the
+     * admin role higher up. It only looked harmless because the tenant was
+     * a single church, so "the tenant" and "their church" were the same
+     * set. They stop being the same set the moment a tenant holds more
+     * than one church, and then tenant-wide means every church's admin
+     * reads and edits every other church's members.
+     */
+    protected function scopedGroupIds(Request $request): Collection
+    {
+        $root = Group::find($this->adminGroupId($request));
+
+        return DomainScope::confine($root ? $root->allGroupIds() : collect());
+    }
+
     protected function scopedBacenta(Request $request, int $id): Group
     {
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
-        $bacenta = Group::where('group_type_id', $cellGroupTypeId)->findOrFail($id);
-        return $bacenta;
+
+        abort_if(
+            ! $this->scopedGroupIds($request)->contains($id),
+            response()->json(['success' => false, 'message' => 'Bacenta not in scope'], 403),
+        );
+
+        return Group::where('group_type_id', $cellGroupTypeId)->findOrFail($id);
     }
 
     protected function scopedMember(Request $request, int $id): Member
     {
-        return Member::with('groups')->findOrFail($id);
+        $member = Member::with('groups')->findOrFail($id);
+
+        // A member belongs to several groups, so one overlap is enough.
+        $inScope = $member->groups->pluck('id')
+            ->intersect($this->scopedGroupIds($request))
+            ->isNotEmpty();
+
+        abort_if(! $inScope, response()->json(['success' => false, 'message' => 'Member not in scope'], 403));
+
+        return $member;
     }
 
     // ─── Members ────────────────────────────────────────────────────────────
@@ -44,7 +81,9 @@ class AdminController extends Controller
         $search = $request->query('search');
         $perPage = (int) $request->query('per_page', 25);
 
-        $query = Member::with(['groups:id,name']);
+        $scopedIds = $this->scopedGroupIds($request);
+        $query = Member::with(['groups:id,name'])
+            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $scopedIds));
 
         if ($search) {
             $query->where(fn ($q) => $q
@@ -60,7 +99,7 @@ class AdminController extends Controller
     public function showMember(Request $request, int $id): JsonResponse
     {
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
-        $member = Member::with(['groups:id,name,group_type_id'])->findOrFail($id);
+        $member = $this->scopedMember($request, $id)->load('groups:id,name,group_type_id');
 
         $data = $member->toArray();
         $data['groups'] = $member->groups->map(fn ($g) => [
@@ -143,6 +182,18 @@ class AdminController extends Controller
             'sonta_id'   => 'nullable|integer|exists:groups,id',
         ]);
 
+        /* exists:groups,id only proves the group is real, not that it is
+           this admin's to move someone into. Without this an admin could
+           reassign a member into any group in the tenant by id, which is
+           the same hole as reading them. */
+        $scopedIds = $this->scopedGroupIds($request);
+        foreach (['bacenta_id', 'sonta_id'] as $key) {
+            abort_if(
+                ! empty($data[$key]) && ! $scopedIds->contains((int) $data[$key]),
+                response()->json(['success' => false, 'message' => 'Group not in scope'], 403),
+            );
+        }
+
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
 
         // Detach all current cell-groups and attach the new one (if provided).
@@ -192,7 +243,7 @@ class AdminController extends Controller
     public function listSontas(Request $request): JsonResponse
     {
         $adminGroupId = $this->adminGroupId($request);
-        $subtreeIds = $this->descendantGroupIds($adminGroupId);
+        $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
         $search = $request->query('search');
 
@@ -211,7 +262,7 @@ class AdminController extends Controller
     public function listBacentas(Request $request): JsonResponse
     {
         $adminGroupId = $this->adminGroupId($request);
-        $subtreeIds = $this->descendantGroupIds($adminGroupId);
+        $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
         $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
         $search = $request->query('search');
 

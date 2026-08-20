@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Group;
 use App\Models\Leader;
+use App\Services\DomainScope;
 use Illuminate\Support\Collection;
 
 class LeaderScopeService
@@ -54,7 +55,7 @@ class LeaderScopeService
         }
 
         if ($this->isSuperAdmin()) {
-            $this->accessibleGroupIds = Group::pluck('id');
+            $this->accessibleGroupIds = $this->confine(Group::pluck('id'));
             return $this->accessibleGroupIds;
         }
 
@@ -75,23 +76,36 @@ class LeaderScopeService
             $allIds = $allIds->merge($this->leader->ledGroup->allGroupIds());
         }
 
-        $this->accessibleGroupIds = $allIds->unique()->values();
+        $this->accessibleGroupIds = $this->confine($allIds->unique()->values());
 
         return $this->accessibleGroupIds;
     }
 
+    /** Narrow to the country the request arrived through. @see DomainScope::confine */
+    protected function confine(Collection $ids): Collection
+    {
+        return DomainScope::confine($ids);
+    }
+
     public function canAccessGroup(int $groupId): bool
     {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
+        // Super admins are checked against the same narrowed set as anyone
+        // else. Returning true unconditionally here would have let a group
+        // admin act on Sweden while ostensibly inside Belgium, which is the
+        // opposite of what a lens is for.
         return $this->getAccessibleGroupIds()->contains($groupId);
     }
 
+    /* Both scopes below used to return the query untouched for a super
+       admin. That is correct while a leader's reach is the only thing
+       narrowing it, and wrong once a domain can narrow too: a group admin
+       inside belgium. would have been handed every group and every member
+       in all eight countries, while every other screen showed them
+       Belgium. They now go through getAccessibleGroupIds() like anyone
+       else, which is a no-op when no domain scope applies. */
     public function scopeGroupsQuery($query)
     {
-        if ($this->isSuperAdmin()) {
+        if ($this->isSuperAdmin() && DomainScope::groupIds() === null) {
             return $query;
         }
 
@@ -100,7 +114,7 @@ class LeaderScopeService
 
     public function scopeMembersQuery($query)
     {
-        if ($this->isSuperAdmin()) {
+        if ($this->isSuperAdmin() && DomainScope::groupIds() === null) {
             return $query;
         }
 
