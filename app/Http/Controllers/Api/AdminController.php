@@ -65,9 +65,11 @@ class AdminController extends Controller
         $member = Member::with('groups')->findOrFail($id);
 
         // A member belongs to several groups, so one overlap is enough.
-        $inScope = $member->groups->pluck('id')
-            ->intersect($this->scopedGroupIds($request))
-            ->isNotEmpty();
+        // A member in no group at all belongs to everyone: see listMembers.
+        $inScope = $member->groups->isEmpty()
+            || $member->groups->pluck('id')
+                ->intersect($this->scopedGroupIds($request))
+                ->isNotEmpty();
 
         abort_if(! $inScope, response()->json(['success' => false, 'message' => 'Member not in scope'], 403));
 
@@ -81,9 +83,19 @@ class AdminController extends Controller
         $search = $request->query('search');
         $perPage = (int) $request->query('per_page', 25);
 
+        /* Members in no group at all stay visible to every admin. createMember
+           deliberately allows a member with no bacenta, so scoping purely on
+           group membership would let you create someone and then lose them:
+           invisible in the list, and unassignable precisely because you can
+           no longer see them. There are 22 such records on production today.
+           They belong to no country either, so a country subdomain shows them
+           too - being seen twice is recoverable, being seen by nobody is not. */
         $scopedIds = $this->scopedGroupIds($request);
         $query = Member::with(['groups:id,name'])
-            ->whereHas('groups', fn ($q) => $q->whereIn('groups.id', $scopedIds));
+            ->where(fn ($q) => $q
+                ->whereHas('groups', fn ($g) => $g->whereIn('groups.id', $scopedIds))
+                ->orWhereDoesntHave('groups')
+            );
 
         if ($search) {
             $query->where(fn ($q) => $q

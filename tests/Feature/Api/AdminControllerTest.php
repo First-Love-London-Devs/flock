@@ -204,6 +204,24 @@ class AdminControllerTest extends TestCase
         $this->assertFalse($this->bacenta->fresh()->is_active);
     }
 
+    /* A member with no groups is nobody's by subtree, so scoping on group
+       membership alone would hide the ones createMember makes without a
+       bacenta - and hide them from the only screen that could assign them. */
+    public function test_a_member_in_no_group_stays_visible_and_assignable(): void
+    {
+        $created = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/members', ['first_name' => 'Un', 'last_name' => 'Assigned'])
+            ->assertOk()->json('data.id');
+
+        $ids = collect($this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/members')->assertOk()->json('data.data'))->pluck('id');
+        $this->assertTrue($ids->contains($created), 'A member with no bacenta must still be listed.');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/v1/admin/members/{$created}/groups", ['bacenta_id' => $this->bacenta->id])
+            ->assertOk();
+    }
+
     /* Reassignment validates its group ids with exists:groups,id, which
        only proves the group is real. Reading a member out of scope and
        moving one out of scope are the same hole, so both are covered. */
