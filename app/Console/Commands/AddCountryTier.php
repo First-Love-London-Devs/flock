@@ -79,7 +79,7 @@ class AddCountryTier extends Command
         return self::SUCCESS;
     }
 
-    private function resolveChurchType(): ?GroupType
+    protected function resolveChurchType(): ?GroupType
     {
         if ($slug = $this->option('church-type')) {
             $type = GroupType::where('slug', $slug)->first();
@@ -89,6 +89,7 @@ class AddCountryTier extends Command
         }
 
         $country = GroupType::where('slug', 'country')->first();
+
         $slugs = Group::query()
             ->whereNull('parent_id')
             ->when($country, fn ($q) => $q->where('group_type_id', '!=', $country->id))
@@ -98,6 +99,25 @@ class AddCountryTier extends Command
             ->filter()
             ->unique()
             ->values();
+
+        /* Second and later runs: everything the map covers is already under a
+           country, so nothing is top-level except the countries themselves and
+           the check above finds nothing. The command is documented as safe to
+           re-run after the map changes, and without this it just refused with
+           "nothing is top-level" and did nothing at all. Look one level down
+           instead — the churches are the children of the countries. */
+        if ($slugs->isEmpty() && $country) {
+            $countryIds = Group::where('group_type_id', $country->id)->pluck('id');
+
+            $slugs = Group::query()
+                ->whereIn('parent_id', $countryIds)
+                ->with('groupType')
+                ->get()
+                ->pluck('groupType.slug')
+                ->filter()
+                ->unique()
+                ->values();
+        }
 
         if ($slugs->count() === 1) {
             return GroupType::where('slug', $slugs->first())->first();
@@ -113,7 +133,10 @@ class AddCountryTier extends Command
         return null;
     }
 
-    private function restructure(bool $dry): void
+    /* protected, not private, so a test can drive it against a tenant
+       database directly. handle() needs a real Tenant to resolve, and the
+       test suite migrates only the tenant schema. */
+    protected function restructure(bool $dry): void
     {
         $this->line($dry ? 'DRY RUN — nothing will be written.' : 'Applying changes.');
         $this->newLine();
