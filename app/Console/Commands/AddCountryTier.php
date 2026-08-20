@@ -162,6 +162,7 @@ class AddCountryTier extends Command
         $this->newLine();
 
         $created = $moved = $existing = 0;
+        $handled = collect();
 
         foreach (self::MAP as $country => $churches) {
             $countryGroup = Group::where('name', $country)
@@ -188,6 +189,8 @@ class AddCountryTier extends Command
                     ->first();
 
                 if ($existingGroup) {
+                    $handled->push($existingGroup->id);
+
                     /* On a dry run the country has not been created, so
                        $countryGroup is null — and a top-level church also
                        has parent_id null, so comparing the two reported
@@ -229,9 +232,16 @@ class AddCountryTier extends Command
         $this->info("  churches created: {$created}   moved under a country: {$moved}   already correct: {$existing}");
 
         /* A church that exists but is not in the map is left exactly where
-           it is and reported, rather than quietly reorganised. */
+           it is and reported, rather than quietly reorganised.
+
+           Excluding the ones the map just handled matters on a dry run:
+           nothing was written, so every church it would have moved is still
+           top-level, and this listed all ten of them as "not in the map"
+           immediately after moving them. Output that contradicts itself
+           reads as a failed run. */
         $orphans = Group::where('group_type_id', $churchType->id)
             ->whereNull('parent_id')
+            ->whereNotIn('id', $handled)
             ->pluck('name');
         if ($orphans->isNotEmpty()) {
             $this->newLine();
