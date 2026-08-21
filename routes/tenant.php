@@ -42,13 +42,24 @@ Route::middleware([
     // Public first-timer / convert capture form (Understanding Campaign), per Stream.
     Route::get('/welcome', [WelcomeFormController::class, 'index'])->name('welcome.index');
     Route::get('/welcome/{stream}', [WelcomeFormController::class, 'show'])->name('welcome-form.show');
-    Route::post('/welcome/{stream}', [WelcomeFormController::class, 'store'])->name('welcome-form.store');
+    /* Public, so unlimited by default. 10 a minute is far more than a real
+       visitor filling this in once, and useless to anyone scripting it. */
+    Route::post('/welcome/{stream}', [WelcomeFormController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('welcome-form.store');
 
     // Public ushers attendance counter (kiosk tap-counter), per Stream.
     Route::get('/attendance-counter', [AttendanceCounterController::class, 'index'])->name('attendance-counter.index');
     Route::get('/attendance-counter/{stream}', [AttendanceCounterController::class, 'show'])->name('attendance-counter.show');
-    Route::post('/attendance-counter/{stream}/increment', [AttendanceCounterController::class, 'increment'])->name('attendance-counter.increment');
-    Route::post('/attendance-counter/{stream}/counts', [AttendanceCounterController::class, 'counts'])->name('attendance-counter.counts');
+    /* A kiosk tap-counter: ushers really do tap fast, so this is loose
+       enough not to interrupt a door count and tight enough that nobody can
+       drive the attendance figure to an arbitrary number from a laptop. */
+    Route::post('/attendance-counter/{stream}/increment', [AttendanceCounterController::class, 'increment'])
+        ->middleware('throttle:120,1')
+        ->name('attendance-counter.increment');
+    Route::post('/attendance-counter/{stream}/counts', [AttendanceCounterController::class, 'counts'])
+        ->middleware('throttle:60,1')
+        ->name('attendance-counter.counts');
 });
 
 Route::middleware([
