@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Group;
+use App\Models\GroupType;
 use App\Models\Member;
 use App\Models\Tenant;
 use Illuminate\Console\Command;
@@ -21,7 +22,11 @@ use Illuminate\Console\Command;
  */
 class ImportTenantMembers extends Command
 {
-    protected $signature = 'flock:import-members {tenant} {--data= : base64(gzip(json array))} {--dry : Report only, write nothing}';
+    protected $signature = 'flock:import-members {tenant}
+        {--data= : base64(gzip(json array))}
+        {--match-on=email : How to recognise someone already on the roll: email, or name-dob}
+        {--group-type= : Restrict group matching to one type slug, when two tiers share a name}
+        {--dry : Report only, write nothing}';
 
     protected $description = 'Import members into a tenant from an inline payload (group attached by name)';
 
@@ -42,23 +47,91 @@ class ImportTenantMembers extends Command
             return self::FAILURE;
         }
 
-        $dry = (bool) $this->option('dry');
+        $code = self::SUCCESS;
+        $tenant->run(function () use ($rows, &$code) {
+            $code = $this->importRows($rows, (bool) $this->option('dry'));
+        });
+
+        return $code;
+    }
+
+    /* protected, not private, so a test can drive it against a tenant database
+       directly. handle() needs a central Tenant record, and the test suite
+       migrates only the tenant schema. Same arrangement as AddCountryTier. */
+    protected function importRows(array $rows, bool $dry): int
+    {
         $created = 0;
         $updated = 0;
         $attached = 0;
         $unmatched = [];
 
-        $tenant->run(function () use ($rows, $dry, &$created, &$updated, &$attached, &$unmatched) {
+        $matchOn = $this->option('match-on') ?: 'email';
+        if (! in_array($matchOn, ['email', 'name-dob'], true)) {
+            $this->error('--match-on must be email or name-dob.');
+
+            return self::FAILURE;
+        }
+
+        $ambiguousUsed = [];
+
+        {
             $norm = fn (?string $s) => preg_replace('/\s+/', ' ', strtolower(str_replace(['’', '`'], "'", trim($s ?? ''))));
 
+            /*
+             * Group names are not unique. A church and the stream inside it
+             * deliberately share a name, so a flat name => id map silently
+             * keeps whichever row the database happened to return last and
+             * attaches every member to it. --group-type says which tier is
+             * meant; without it, an ambiguous name is refused rather than
+             * guessed.
+             */
+            $typeSlug = $this->option('group-type');
+            $type = $typeSlug ? GroupType::where('slug', $typeSlug)->first() : null;
+            if ($typeSlug && ! $type) {
+                $this->error("No group type with slug \"{$typeSlug}\".");
+                $this->line('  Available: '.GroupType::pluck('slug')->implode(', '));
+
+                return self::FAILURE;
+            }
+
             $groupsByNorm = [];
-            foreach (Group::get(['id', 'name']) as $g) {
-                $groupsByNorm[$norm($g->name)] = $g->id;
+            $ambiguous = [];
+            $query = Group::query()->when($type, fn ($q) => $q->where('group_type_id', $type->id));
+            foreach ($query->get(['id', 'name']) as $g) {
+                $key = $norm($g->name);
+                if (isset($groupsByNorm[$key])) {
+                    $ambiguous[$key] = true;
+                }
+                $groupsByNorm[$key] = $g->id;
             }
 
             foreach ($rows as $r) {
                 $email = trim($r['email'] ?? '') ?: null;
-                $member = $email ? Member::firstOrNew(['email' => $email]) : new Member();
+
+                /*
+                 * With no email there is nothing to recognise a person by, so
+                 * every run created a fresh row and importing the same
+                 * spreadsheet twice silently doubled the roll. Sheets that
+                 * carry no email address can be matched on name and date of
+                 * birth instead, which is weaker than an email but far better
+                 * than nothing.
+                 */
+                if ($email) {
+                    $member = Member::firstOrNew(['email' => $email]);
+                } elseif ($matchOn === 'name-dob' && ($r['date_of_birth'] ?? null)) {
+                    /* whereDate, not a plain equality on the attribute:
+                       date_of_birth is cast to a date and stored with a time
+                       component, so matching the bare "1997-12-08" from a
+                       spreadsheet never found the existing row and every run
+                       added the person again. */
+                    $member = Member::query()
+                        ->where('first_name', $r['first_name'] ?? null)
+                        ->where('last_name', $r['last_name'] ?? null)
+                        ->whereDate('date_of_birth', $r['date_of_birth'])
+                        ->first() ?? new Member();
+                } else {
+                    $member = new Member();
+                }
                 $existed = $member->exists;
 
                 $member->fill([
@@ -88,7 +161,13 @@ class ImportTenantMembers extends Command
                 if ($groupName === '') {
                     continue;
                 }
-                $groupId = $groupsByNorm[$norm($groupName)] ?? null;
+                $key = $norm($groupName);
+                if (isset($ambiguous[$key])) {
+                    $ambiguousUsed[$groupName] = ($ambiguousUsed[$groupName] ?? 0) + 1;
+
+                    continue;
+                }
+                $groupId = $groupsByNorm[$key] ?? null;
                 if (! $groupId) {
                     $unmatched[$groupName] = ($unmatched[$groupName] ?? 0) + 1;
 
@@ -104,12 +183,17 @@ class ImportTenantMembers extends Command
                 }
                 $attached++;
             }
-        });
+        }
 
         $mode = $dry ? '[DRY RUN] ' : '';
         $this->info("{$mode}Created: {$created} | Updated: {$updated} | Group-attached: {$attached}");
         if ($unmatched) {
             $this->warn('Unmatched groups (members left ungrouped): '.json_encode($unmatched, JSON_UNESCAPED_UNICODE));
+        }
+        if ($ambiguousUsed) {
+            $this->error('Ambiguous group names, members left ungrouped: '
+                .json_encode($ambiguousUsed, JSON_UNESCAPED_UNICODE));
+            $this->line('  More than one group has that name. Pass --group-type=<slug> to say which tier.');
         }
 
         return self::SUCCESS;
