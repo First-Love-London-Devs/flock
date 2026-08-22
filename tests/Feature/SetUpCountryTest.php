@@ -272,6 +272,27 @@ class SetUpCountryTest extends TestCase
         $this->assertStringContainsString('stream exists', $second);
     }
 
+    /**
+     * The summary counted logins only, so a run that was about to create eight
+     * streams and no accounts announced "nothing to create". Anyone reading
+     * that would reasonably not bother running it for real.
+     */
+    public function test_the_summary_counts_groups_not_just_accounts(): void
+    {
+        $country = $this->seedSwitzerland(['Geneva', 'Basel']);
+        RoleDefinition::where('applies_to_group_type_id', $this->churchType->id)->delete();
+        // An admin already present, so accounts are genuinely nil.
+        User::create([
+            'name' => 'Switzerland Admin', 'email' => 'switzerland@go-church.flock',
+            'password' => 'x', 'scope_group_id' => $country->id,
+        ]);
+
+        $output = $this->execute(dry: true);
+
+        $this->assertStringContainsString('2 group(s) would be created', $output);
+        $this->assertStringNotContainsString('Nothing to do', $output);
+    }
+
     public function test_it_stops_when_the_country_does_not_exist(): void
     {
         $output = $this->execute();

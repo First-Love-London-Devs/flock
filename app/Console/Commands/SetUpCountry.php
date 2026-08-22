@@ -58,6 +58,11 @@ class SetUpCountry extends Command
     /** Credentials are printed once at the end and stored nowhere readable. */
     protected array $issued = [];
 
+    /** Groups created. Counted separately: they carry no credential, and a
+        summary that only counted logins announced "nothing to create" while
+        listing eight streams it was about to make. */
+    protected int $groupsMade = 0;
+
     public function handle(): int
     {
         $tenant = Tenant::find($this->argument('tenant'));
@@ -163,6 +168,7 @@ class SetUpCountry extends Command
         }
 
         $this->line("  + {$church->name}: stream \"{$church->name}\"");
+        $this->groupsMade++;
 
         if (! $dry) {
             Group::create([
@@ -326,19 +332,33 @@ class SetUpCountry extends Command
     {
         $this->newLine();
 
-        if (! $this->issued) {
-            $this->info('Nothing to create. Everything was already there.');
+        if (! $this->issued && ! $this->groupsMade) {
+            $this->info('Nothing to do. Everything was already there.');
 
             return;
         }
+
+        $parts = [];
+        if ($this->groupsMade) {
+            $parts[] = $this->groupsMade.' group(s)';
+        }
+        if ($this->issued) {
+            $parts[] = count($this->issued).' account(s)';
+        }
+        $summary = implode(' and ', $parts);
 
         if ($dry) {
-            $this->info(count($this->issued).' account(s) would be created. Re-run without --dry.');
+            $this->info($summary.' would be created. Re-run without --dry.');
 
             return;
         }
 
-        $this->info('Created '.count($this->issued).' account(s):');
+        $this->info('Created '.$summary.'.');
+
+        if (! $this->issued) {
+            return;
+        }
+
         $this->newLine();
         $this->table(['For', 'Username', 'Password'], $this->issued);
         $this->newLine();
