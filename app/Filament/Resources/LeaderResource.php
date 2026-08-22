@@ -19,14 +19,26 @@ class LeaderResource extends Resource
     use ScopesToAdminGroup;
 
     /* A leader belongs to the tree through the groups their active roles
-       are attached to. */
+       are attached to.
+
+       Leaders with no role at all are shown to every scoped admin as well.
+       Creating one is two steps in the panel, the login and then the role, and
+       between them the leader has no role: scoping purely on roles made it
+       vanish the instant it was saved, leaving the admin who had just created
+       it unable to reach step two. Same trade as the group-less members on the
+       API side, and for the same reason: being seen by a country that turns
+       out not to own them is recoverable, being seen by nobody is not. */
     protected static function applyGroupScope(Builder $query): Builder
     {
         $ids = User::currentScopeIds();
 
-        return $ids === null ? $query : $query->whereHas(
-            'leaderRoles',
-            fn ($q) => $q->where('is_active', true)->whereIn('group_id', $ids),
+        return $ids === null ? $query : $query->where(
+            fn ($q) => $q
+                ->whereHas(
+                    'leaderRoles',
+                    fn ($r) => $r->where('is_active', true)->whereIn('group_id', $ids),
+                )
+                ->orWhereDoesntHave('leaderRoles'),
         );
     }
 

@@ -129,6 +129,31 @@ class AdminPanelScopeTest extends TestCase
         $this->assertNotContains('SwedishLeader', $usernames);
     }
 
+    /**
+     * Making a member a leader is two steps in the panel: create the login,
+     * then give it a role. Between those two steps the leader has no role, and
+     * leaders are found through the groups their roles sit on. Scoping purely
+     * on that made the leader vanish the moment it was saved, so the admin who
+     * had just created it could not reach step two.
+     *
+     * Same reasoning as the group-less members on the API side: being seen by
+     * a country that turns out not to own them is recoverable, being seen by
+     * nobody is not.
+     */
+    public function test_a_country_admin_can_still_see_a_leader_they_have_just_created(): void
+    {
+        $fresh = Leader::factory()->create(['username' => 'JustCreated']);
+
+        $this->actingAs($this->admin($this->belgium));
+
+        $usernames = LeaderResource::getEloquentQuery()->pluck('username');
+        $this->assertContains(
+            'JustCreated',
+            $usernames,
+            'A leader with no role yet must stay reachable, or step two is impossible.'
+        );
+    }
+
     public function test_an_unscoped_admin_still_sees_everything(): void
     {
         $this->memberIn($this->antwerp, 'Belgian');
