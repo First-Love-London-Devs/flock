@@ -29,6 +29,8 @@ class SetUpCountryTest extends TestCase
 
     private GroupType $churchType;
 
+    private GroupType $streamType;
+
     private RoleDefinition $churchRole;
 
     protected function setUp(): void
@@ -42,6 +44,11 @@ class SetUpCountryTest extends TestCase
         $this->churchType = GroupType::create([
             'name' => 'Gathering Service', 'slug' => 'gathering-service', 'level' => 1,
             'tracks_attendance' => true, 'is_active' => true,
+        ]);
+
+        $this->streamType = GroupType::create([
+            'name' => 'Stream', 'slug' => 'stream', 'level' => 2,
+            'tracks_attendance' => false, 'is_active' => true,
         ]);
 
         $this->churchRole = RoleDefinition::create([
@@ -119,6 +126,14 @@ class SetUpCountryTest extends TestCase
         $admin = User::where('email', 'switzerland@go-church.flock')->first();
         $this->assertNotNull($admin, 'The panel admin should exist.');
         $this->assertSame($country->id, $admin->scope_group_id, 'The admin must be confined to Switzerland.');
+
+        foreach (['Geneva', 'Basel'] as $name) {
+            $church = Group::where('name', $name)->where('parent_id', $country->id)->firstOrFail();
+            $stream = Group::where('parent_id', $church->id)
+                ->where('group_type_id', $this->streamType->id)->first();
+            $this->assertNotNull($stream, "{$name} should have a stream beneath it.");
+            $this->assertSame($name, $stream->name, 'The stream carries the church name.');
+        }
 
         $this->assertSame(2, Leader::count(), 'One leader per church.');
 
@@ -205,20 +220,56 @@ class SetUpCountryTest extends TestCase
         );
     }
 
-    public function test_it_refuses_to_guess_the_role_when_several_apply(): void
+    /**
+     * A fresh country has no role that applies to its churches, which is the
+     * real situation in every country except Belgium. The structure and the
+     * admin must still be built: failing the whole run would leave the country
+     * exactly as empty as before.
+     */
+    public function test_it_builds_the_structure_and_skips_leaders_when_no_role_applies(): void
     {
-        $this->seedSwitzerland(['Geneva']);
-
-        // A second role claiming the same group type makes the choice ambiguous.
-        RoleDefinition::create([
-            'name' => 'Assistant', 'slug' => 'assistant', 'permission_level' => 30,
-            'applies_to_group_type_id' => $this->churchType->id, 'is_active' => true,
-        ]);
+        $country = $this->seedSwitzerland(['Geneva']);
+        // Nothing applies to a gathering service, as in production.
+        RoleDefinition::where('applies_to_group_type_id', $this->churchType->id)->delete();
 
         $output = $this->execute();
 
-        $this->assertStringContainsString('Several roles apply', $output);
-        $this->assertSame(0, Leader::count(), 'Nothing should be created when the role is ambiguous.');
+        $church = Group::where('name', 'Geneva')->where('parent_id', $country->id)->firstOrFail();
+        $this->assertSame(
+            1,
+            Group::where('parent_id', $church->id)->where('group_type_id', $this->streamType->id)->count(),
+            'The stream should still have been created.'
+        );
+        $this->assertSame(1, User::where('email', 'switzerland@go-church.flock')->count(), 'The admin too.');
+
+        $this->assertStringContainsString('No leaders created', $output);
+        $this->assertSame(0, Leader::count(), 'No leader may be invented without a role.');
+    }
+
+    public function test_it_names_an_explicitly_requested_role_it_cannot_find(): void
+    {
+        $this->seedSwitzerland(['Geneva']);
+
+        $output = $this->execute(options: ['leader-role' => 'no-such-role']);
+
+        $this->assertStringContainsString('No role definition with slug', $output);
+        $this->assertSame(0, Leader::count());
+    }
+
+    public function test_running_twice_does_not_duplicate_the_stream(): void
+    {
+        $country = $this->seedSwitzerland(['Geneva']);
+
+        $this->execute();
+        $second = $this->execute();
+
+        $church = Group::where('name', 'Geneva')->where('parent_id', $country->id)->firstOrFail();
+        $this->assertSame(
+            1,
+            Group::where('parent_id', $church->id)->where('group_type_id', $this->streamType->id)->count(),
+            'A second run must not add a second stream.'
+        );
+        $this->assertStringContainsString('stream exists', $second);
     }
 
     public function test_it_stops_when_the_country_does_not_exist(): void

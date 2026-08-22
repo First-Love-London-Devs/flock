@@ -16,10 +16,16 @@ use Illuminate\Support\Str;
 /**
  * Stand one country up end to end.
  *
- * `flock:add-country-tier` builds the groups: a country with its churches
- * underneath. That leaves a shape with nobody in it. This puts the people in:
- * one panel admin confined to the country, and one leader login per church so
- * somebody can actually open the app and take attendance.
+ * `flock:add-country-tier` gets as far as a country with its churches
+ * underneath, which is not yet a working country. This finishes the job:
+ *
+ *   1. A stream under every gathering service, carrying the same name. That is
+ *      the client's shape, and bacentas and governors hang off the stream
+ *      later.
+ *   2. A panel admin confined to the country.
+ *   3. A leader per church, but only once a role exists that applies to them.
+ *      Nobody in this tenant leads a gathering service, so in a fresh country
+ *      this step is skipped and reported rather than guessed at.
  *
  * Three different things get created and they are easy to confuse:
  *
@@ -90,26 +96,82 @@ class SetUpCountry extends Command
             return self::FAILURE;
         }
 
-        $role = $this->resolveLeaderRole($churches->first());
-        if (! $role) {
+        $this->line($dry ? 'DRY RUN — nothing will be written.' : 'Applying changes.');
+        $this->line("  country:     {$country->name} ({$churches->count()} churches)");
+        $this->newLine();
+
+        $streamType = GroupType::where('slug', 'stream')->first();
+        if (! $streamType) {
+            $this->error('There is no "stream" group type in this tenant.');
+
             return self::FAILURE;
         }
 
-        $this->line($dry ? 'DRY RUN — nothing will be written.' : 'Applying changes.');
-        $this->line("  country:     {$country->name} ({$churches->count()} churches)");
-        $this->line("  leader role: {$role->slug}");
-        $this->newLine();
-
-        $this->makeAdmin($country, $dry);
-        $this->newLine();
-
         foreach ($churches as $church) {
-            $this->makeLeader($church, $role, $dry);
+            $this->makeStream($church, $streamType, $dry);
+        }
+
+        $this->newLine();
+        $this->makeAdmin($country, $dry);
+
+        /*
+         * Leaders are last and optional.
+         *
+         * Nobody in this tenant leads a gathering service: every leader sits on
+         * a bacenta, a basonta or a governor, all of which are below the church
+         * and do not exist yet in a new country. So when no role applies, the
+         * structure and the admin are still built and the people are skipped,
+         * rather than the whole run failing and leaving the country empty.
+         */
+        $role = $this->resolveLeaderRole($churches->first(), quiet: ! $this->option('leader-role'));
+
+        if ($role) {
+            $this->newLine();
+            $this->line("  leader role: {$role->slug}");
+            foreach ($churches as $church) {
+                $this->makeLeader($church, $role, $dry);
+            }
+        } else {
+            $this->newLine();
+            $this->comment('  No leaders created: no role applies to these churches yet.');
+            $this->line('  Add the bacentas and governors, then re-run with --leader-role=<slug>.');
         }
 
         $this->report($dry);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Every gathering service gets a stream of the same name beneath it.
+     *
+     * That is the client's own shape: the church is the gathering service, and
+     * the stream directly under it carries the same name. Bacentas and
+     * governors hang off the stream later.
+     */
+    protected function makeStream(Group $church, GroupType $streamType, bool $dry): void
+    {
+        $existing = Group::where('parent_id', $church->id)
+            ->where('group_type_id', $streamType->id)
+            ->where('name', $church->name)
+            ->first();
+
+        if ($existing) {
+            $this->line("  = {$church->name}: stream exists");
+
+            return;
+        }
+
+        $this->line("  + {$church->name}: stream \"{$church->name}\"");
+
+        if (! $dry) {
+            Group::create([
+                'name' => $church->name,
+                'group_type_id' => $streamType->id,
+                'parent_id' => $church->id,
+                'is_active' => true,
+            ]);
+        }
     }
 
     /**
@@ -121,7 +183,7 @@ class SetUpCountry extends Command
      * churches' own group type, and if that is ambiguous, say so rather than
      * picking.
      */
-    protected function resolveLeaderRole(Group $church): ?RoleDefinition
+    protected function resolveLeaderRole(Group $church, bool $quiet = false): ?RoleDefinition
     {
         if ($slug = $this->option('leader-role')) {
             $role = RoleDefinition::where('slug', $slug)->first();
@@ -139,6 +201,10 @@ class SetUpCountry extends Command
 
         if ($matching->count() === 1) {
             return $matching->first();
+        }
+
+        if ($quiet) {
+            return null;
         }
 
         $type = GroupType::find($church->group_type_id);
