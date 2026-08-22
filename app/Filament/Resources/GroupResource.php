@@ -26,6 +26,34 @@ class GroupResource extends Resource
         return $ids === null ? $query : $query->whereIn('groups.id', $ids);
     }
 
+    /**
+     * The same confinement, for the dropdowns inside the form.
+     *
+     * Scoping the list but not the form is worse than not scoping at all: the
+     * parent selector offered every group in the tenant, so a country admin
+     * could hang a new bacenta under another country. The moment they saved
+     * it, the group would sit outside their scope and vanish, leaving them
+     * unable to see the thing they had just made, let alone move it back.
+     */
+    public static function confineOptions(Builder $query): Builder
+    {
+        $ids = User::currentScopeIds();
+
+        return $ids === null ? $query : $query->whereIn('groups.id', $ids);
+    }
+
+    /** Leaders offered as a group's leader, confined the same way. */
+    public static function confineLeaderOptions(Builder $query): Builder
+    {
+        $ids = User::currentScopeIds();
+
+        return $ids === null ? $query : $query->where(
+            fn ($q) => $q
+                ->whereHas('leaderRoles', fn ($r) => $r->whereIn('group_id', $ids))
+                ->orWhereDoesntHave('leaderRoles'),
+        );
+    }
+
     protected static ?string $model = Group::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -42,11 +70,11 @@ class GroupResource extends Resource
                     ->relationship('groupType', 'name')
                     ->required(),
                 Forms\Components\Select::make('parent_id')
-                    ->relationship('parent', 'name')
+                    ->relationship('parent', 'name', fn (Builder $query) => static::confineOptions($query))
                     ->nullable()
                     ->searchable(),
                 Forms\Components\Select::make('leader_id')
-                    ->relationship('leader', 'username')
+                    ->relationship('leader', 'username', fn (Builder $query) => static::confineLeaderOptions($query))
                     ->nullable()
                     ->searchable(),
                 Forms\Components\Textarea::make('description')

@@ -154,6 +154,32 @@ class AdminPanelScopeTest extends TestCase
         );
     }
 
+    /**
+     * Scoping the list but not the form is worse than not scoping at all: the
+     * admin picks a parent in another country, saves, and the group lands
+     * outside their scope where they cannot see or fix it.
+     */
+    public function test_the_parent_dropdown_only_offers_groups_in_the_admins_country(): void
+    {
+        $this->actingAs($this->admin($this->belgium));
+
+        $names = GroupResource::confineOptions(Group::query())->pluck('name');
+
+        $this->assertContains('Antwerp', $names);
+        $this->assertNotContains('Stockholm', $names, 'A Belgian admin must not be able to parent a group under Sweden.');
+        $this->assertNotContains('Sweden', $names);
+    }
+
+    public function test_the_parent_dropdown_is_unrestricted_for_a_group_wide_admin(): void
+    {
+        $this->actingAs($this->admin(null));
+
+        $names = GroupResource::confineOptions(Group::query())->pluck('name');
+
+        $this->assertContains('Antwerp', $names);
+        $this->assertContains('Stockholm', $names);
+    }
+
     public function test_an_unscoped_admin_still_sees_everything(): void
     {
         $this->memberIn($this->antwerp, 'Belgian');
