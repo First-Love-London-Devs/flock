@@ -42,6 +42,61 @@ class MemberResource extends Resource
         );
     }
 
+    /**
+     * A username in the house style: firstname.lastname, lowercased, spaces
+     * and punctuation stripped, with a number appended if it is taken.
+     *
+     * Every one of the 72 existing leaders follows this, so a generated one
+     * that does not would stand out and be typed wrongly.
+     */
+    public static function suggestUsername(Member $member): string
+    {
+        $part = fn (?string $s) => preg_replace('/[^a-z0-9]/', '', strtolower(
+            iconv('UTF-8', 'ASCII//TRANSLIT', (string) $s) ?: (string) $s
+        ));
+
+        $base = trim($part($member->first_name).'.'.$part($member->last_name), '.');
+        $base = $base !== '' && $base !== '.' ? $base : 'leader';
+
+        $username = $base;
+        $n = 1;
+        while (Leader::where('username', $username)->exists()) {
+            $username = $base.(++$n);
+        }
+
+        return $username;
+    }
+
+    /**
+     * Turn a member into a leader.
+     *
+     * Extracted from the table action so it can be tested: the action itself
+     * is a closure inside a static form definition and is awkward to reach.
+     */
+    public static function promoteToLeader(Member $member, array $data): Leader
+    {
+        return DB::transaction(function () use ($member, $data) {
+            $leader = Leader::create([
+                'member_id' => $member->id,
+                'username' => $data['username'],
+                'password' => $data['password'] ?: Setting::get('default_leader_password', 'Flock2026!'),
+                'is_active' => true,
+            ]);
+
+            if (! empty($data['role_definition_id'])) {
+                LeaderRole::create([
+                    'leader_id' => $leader->id,
+                    'role_definition_id' => $data['role_definition_id'],
+                    'group_id' => $data['group_id'] ?? null,
+                    'assigned_at' => now(),
+                    'is_active' => true,
+                ]);
+            }
+
+            return $leader;
+        });
+    }
+
     protected static ?string $model = Member::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
@@ -302,42 +357,38 @@ class MemberResource extends Resource
                         Forms\Components\TextInput::make('username')
                             ->required()
                             ->unique('leaders', 'username')
-                            ->default(fn (Member $record) => strtolower($record->first_name.'.'.$record->last_name)),
+                            ->helperText('The name they type to log into the app.')
+                            ->default(fn (Member $record) => static::suggestUsername($record)),
+                        Forms\Components\TextInput::make('password')
+                            ->required()
+                            ->helperText('Shown once after saving. Change it to something unique for anyone who matters.')
+                            ->default(fn () => Setting::get('default_leader_password', 'Flock2026!')),
                         Forms\Components\Select::make('role_definition_id')
                             ->label('Role')
                             ->options(RoleDefinition::active()->pluck('name', 'id'))
+                            ->helperText('Without a role they can log in and see nothing.')
                             ->placeholder('No role'),
                         Forms\Components\Select::make('group_id')
-                            ->label('Assign to Group')
-                            ->relationship('groups', 'name')
-                            ->options(fn () => Group::pluck('name', 'id'))
+                            ->label('Leading which group')
+                            // Confined to the admin's own country: an unscoped
+                            // list let a country admin put a leader in charge
+                            // of another country's group.
+                            ->options(fn () => GroupResource::confineOptions(Group::query())
+                                ->orderBy('name')->pluck('name', 'id'))
                             ->searchable()
                             ->placeholder('No group')
                             ->visible(fn (Forms\Get $get) => filled($get('role_definition_id'))),
                     ])
                     ->action(function (Member $record, array $data) {
-                        $defaultPassword = Setting::get('default_leader_password', 'Flock2026!');
-
-                        $leader = Leader::create([
-                            'member_id' => $record->id,
-                            'username' => $data['username'],
-                            'password' => $defaultPassword,
-                            'is_active' => true,
-                        ]);
-
-                        if (! empty($data['role_definition_id'])) {
-                            LeaderRole::create([
-                                'leader_id' => $leader->id,
-                                'role_definition_id' => $data['role_definition_id'],
-                                'group_id' => $data['group_id'] ?? null,
-                                'assigned_at' => now(),
-                                'is_active' => true,
-                            ]);
-                        }
+                        $leader = static::promoteToLeader($record, $data);
 
                         Notification::make()
                             ->title("{$record->full_name} is now a leader")
-                            ->body("Username: {$data['username']}")
+                            /* The password is shown here and nowhere else: it
+                               is hashed on save and cannot be read back, so an
+                               admin who does not copy it now has to reset it. */
+                            ->body("Username: {$leader->username}  |  Password: {$data['password']}")
+                            ->persistent()
                             ->success()
                             ->send();
                     }),
