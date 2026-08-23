@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\LeaderResource\RelationManagers;
 
+use App\Filament\Resources\GroupResource;
+use App\Models\Group;
 use App\Models\RoleDefinition;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -24,9 +26,15 @@ class LeaderRolesRelationManager extends RelationManager
                     ->required(),
                 Forms\Components\Select::make('group_id')
                     ->label('Group')
-                    ->relationship('group', 'name')
+                    /* Confined to the signed-in admin's country, and required.
+                       A role with no group leads nothing: it is not a lighter
+                       version of a role, it is a role that does not work, and
+                       it also used to make the leader invisible to the very
+                       admin who created them. */
+                    ->options(fn () => GroupResource::confineOptions(Group::query())
+                        ->orderBy('name')->pluck('name', 'id'))
                     ->searchable()
-                    ->nullable(),
+                    ->required(),
                 Forms\Components\Toggle::make('is_active')
                     ->default(true),
             ]);

@@ -376,7 +376,10 @@ class MemberResource extends Resource
                             ->options(fn () => GroupResource::confineOptions(Group::query())
                                 ->orderBy('name')->pluck('name', 'id'))
                             ->searchable()
-                            ->placeholder('No group')
+                            /* Required as soon as a role is chosen. A role
+                               pointing at no group leads nothing, and it also
+                               dropped the leader out of every country's list. */
+                            ->required(fn (Forms\Get $get) => filled($get('role_definition_id')))
                             ->visible(fn (Forms\Get $get) => filled($get('role_definition_id'))),
                     ])
                     ->action(function (Member $record, array $data) {

@@ -21,13 +21,19 @@ class LeaderResource extends Resource
     /* A leader belongs to the tree through the groups their active roles
        are attached to.
 
-       Leaders with no role at all are shown to every scoped admin as well.
-       Creating one is two steps in the panel, the login and then the role, and
-       between them the leader has no role: scoping purely on roles made it
-       vanish the instant it was saved, leaving the admin who had just created
-       it unable to reach step two. Same trade as the group-less members on the
-       API side, and for the same reason: being seen by a country that turns
-       out not to own them is recoverable, being seen by nobody is not. */
+       An UNPLACED leader is shown to every scoped admin as well. Unplaced
+       means either no role at all, or a role that points at no group, and
+       both happen in normal use: creating a leader is two steps, and "Make
+       Leader" allowed a role to be chosen without a group. Scoping purely on
+       "role inside my country" made both vanish the instant they were saved,
+       leaving the admin who had just created them unable to finish the job.
+
+       The first version of this only covered "no role at all", which is why
+       six leaders with a group-less role went missing before anyone noticed.
+
+       Same trade as the group-less members on the API side, and for the same
+       reason: being seen by a country that turns out not to own them is
+       recoverable, being seen by nobody is not. */
     protected static function applyGroupScope(Builder $query): Builder
     {
         $ids = User::currentScopeIds();
@@ -38,7 +44,8 @@ class LeaderResource extends Resource
                     'leaderRoles',
                     fn ($r) => $r->where('is_active', true)->whereIn('group_id', $ids),
                 )
-                ->orWhereDoesntHave('leaderRoles'),
+                ->orWhereDoesntHave('leaderRoles')
+                ->orWhereDoesntHave('leaderRoles', fn ($r) => $r->whereNotNull('group_id')),
         );
     }
 

@@ -180,6 +180,37 @@ class AdminPanelScopeTest extends TestCase
         $this->assertContains('Stockholm', $names);
     }
 
+    /**
+     * The gap the first fix missed.
+     *
+     * "Make Leader" let a role be chosen without a group, so the role exists
+     * and points at nothing. Such a leader fails the "role inside my country"
+     * test AND fails "has no role at all", falling between the two and
+     * disappearing. Six real leaders were created this way before it was spotted.
+     */
+    public function test_a_leader_whose_role_has_no_group_is_still_visible(): void
+    {
+        $definition = RoleDefinition::create([
+            'name' => 'Bacenta Leader', 'slug' => 'bacenta-leader-test',
+            'permission_level' => 40, 'is_active' => true,
+        ]);
+        $leader = Leader::factory()->create(['username' => 'RoleButNoGroup']);
+        LeaderRole::create([
+            'leader_id' => $leader->id,
+            'role_definition_id' => $definition->id,
+            'group_id' => null,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin($this->belgium));
+
+        $this->assertContains(
+            'RoleButNoGroup',
+            LeaderResource::getEloquentQuery()->pluck('username'),
+            'A role pointing at no group must not make the leader vanish.'
+        );
+    }
+
     public function test_an_unscoped_admin_still_sees_everything(): void
     {
         $this->memberIn($this->antwerp, 'Belgian');
