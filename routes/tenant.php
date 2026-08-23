@@ -57,6 +57,12 @@ Route::middleware([
     Route::post('/attendance-counter/{stream}/increment', [AttendanceCounterController::class, 'increment'])
         ->middleware('throttle:120,1')
         ->name('attendance-counter.increment');
+    /* Undo is rate-limited harder than the tap. A stray tap is one mistake;
+       being able to hammer undo from outside is a way to walk a count down to
+       nothing, and nobody legitimately undoes sixty times a minute. */
+    Route::post('/attendance-counter/{stream}/undo', [AttendanceCounterController::class, 'undo'])
+        ->middleware('throttle:30,1')
+        ->name('attendance-counter.undo');
     Route::post('/attendance-counter/{stream}/counts', [AttendanceCounterController::class, 'counts'])
         ->middleware('throttle:60,1')
         ->name('attendance-counter.counts');

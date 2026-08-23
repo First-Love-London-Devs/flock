@@ -15,11 +15,15 @@ class AttendanceCounter extends Model
         'regular_count',
         'visitor_count',
         'reset_at',
+        'corrected_at',
+        'corrected_by',
+        'correction_note',
     ];
 
     protected $casts = [
         'date' => 'date',
         'reset_at' => 'datetime',
+        'corrected_at' => 'datetime',
         'first_time_count' => 'integer',
         'returning_count' => 'integer',
         'regular_count' => 'integer',

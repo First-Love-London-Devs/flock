@@ -49,6 +49,27 @@ class AttendanceCounterResource extends Resource
         ]);
     }
 
+    /**
+     * Apply a correction.
+     *
+     * Extracted so it can be tested: the action body is a closure inside a
+     * static table definition and is awkward to reach from a test.
+     */
+    public static function correct(AttendanceCounter $record, array $data): AttendanceCounter
+    {
+        $record->update([
+            'first_time_count' => (int) $data['first_time_count'],
+            'returning_count' => (int) $data['returning_count'],
+            'regular_count' => (int) $data['regular_count'],
+            'visitor_count' => (int) $data['visitor_count'],
+            'corrected_at' => now(),
+            'corrected_by' => auth()->user()?->name ?? auth()->user()?->email,
+            'correction_note' => $data['correction_note'],
+        ]);
+
+        return $record;
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -61,6 +82,17 @@ class AttendanceCounterResource extends Resource
                 Tables\Columns\TextColumn::make('visitor_count')->label('Visitor')->sortable(),
                 Tables\Columns\TextColumn::make('total_count')->label('Total')->weight('bold'),
                 Tables\Columns\TextColumn::make('updated_at')->label('Last tap')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
+                /* A corrected total is a different kind of fact from a counted
+                   one, so it says so rather than looking identical. */
+                Tables\Columns\TextColumn::make('corrected_at')
+                    ->label('Corrected')
+                    ->badge()
+                    ->color('warning')
+                    ->formatStateUsing(fn ($state, AttendanceCounter $record) => $state
+                        ? 'by '.($record->corrected_by ?: 'someone').' '.$state->diffForHumans()
+                        : null)
+                    ->tooltip(fn (AttendanceCounter $record) => $record->correction_note)
+                    ->placeholder(''),
             ])
             ->defaultSort('date', 'desc')
             ->filters([
@@ -72,6 +104,42 @@ class AttendanceCounterResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
+                /*
+                 * Ushers miscount. Every field on this record is disabled, so
+                 * until now the only remedy was someone editing the database,
+                 * which left a figure indistinguishable from a real count.
+                 *
+                 * This sets the numbers and records that it was set, by whom
+                 * and why. The tap log is deliberately left alone: it is what
+                 * actually happened, and rewriting history to match a
+                 * correction would destroy the only evidence of the mistake.
+                 */
+                Tables\Actions\Action::make('correctCounts')
+                    ->label('Correct counts')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->modalHeading('Correct a miscount')
+                    ->modalDescription('Use this when the counting itself went wrong. The tap history is kept as it was, and the record will show that these numbers were corrected.')
+                    ->modalSubmitActionLabel('Save correction')
+                    ->fillForm(fn (AttendanceCounter $record) => [
+                        'first_time_count' => $record->first_time_count,
+                        'returning_count' => $record->returning_count,
+                        'regular_count' => $record->regular_count,
+                        'visitor_count' => $record->visitor_count,
+                    ])
+                    ->form([
+                        Forms\Components\TextInput::make('first_time_count')->label('First time')->numeric()->minValue(0)->required(),
+                        Forms\Components\TextInput::make('returning_count')->label('Been here before')->numeric()->minValue(0)->required(),
+                        Forms\Components\TextInput::make('regular_count')->label('Regular')->numeric()->minValue(0)->required(),
+                        Forms\Components\TextInput::make('visitor_count')->label('Visitor')->numeric()->minValue(0)->required(),
+                        Forms\Components\Textarea::make('correction_note')
+                            ->label('What went wrong')
+                            ->placeholder('e.g. the ushers double-counted the side door')
+                            ->required()
+                            ->helperText('Required. In a month nobody will remember why this number changed.'),
+                    ])
+                    ->action(fn (AttendanceCounter $record, array $data) => static::correct($record, $data))
+                    ->successNotificationTitle('Counts corrected'),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

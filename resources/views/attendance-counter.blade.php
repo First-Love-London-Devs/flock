@@ -18,6 +18,12 @@
             transform: translateY(-100%); transition: transform 0.25s ease;
         }
         .ac-flash.show { transform: translateY(0); }
+        .ac-undo {
+            display: block; width: 100%; margin-bottom: .75rem; padding: .85rem 1rem;
+            font: inherit; font-size: 1rem; color: #b45309; background: #fffbeb;
+            border: 1px solid #fcd34d; border-radius: .5rem; cursor: pointer;
+        }
+        .ac-undo[hidden] { display: none; }
 
         .ac-buttons { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem; }
         .ac-btn {
@@ -73,6 +79,12 @@
     </div>
 
     <div class="ac-actions">
+        {{-- Only appears for a few seconds after a tap. A permanently visible
+             undo on a screen the congregation uses would let anyone reverse
+             somebody else's count. --}}
+        <button type="button" class="ac-undo" data-undo hidden onclick="undoLast()">
+            Undo that / Ongedaan maken
+        </button>
         <button type="button" class="ac-show" onclick="toggleCounts()">Show current count / Toon huidige telling</button>
     </div>
 
@@ -91,6 +103,9 @@
             var flash = document.querySelector('[data-flash]');
             var countsPanel = document.querySelector('[data-counts]');
             var flashTimer = null;
+            var undoBtn = document.querySelector('[data-undo]');
+            var undoTimer = null;
+            var lastCategory = null;
 
             function deviceId() {
                 var id = localStorage.getItem('attendance_device_id');
@@ -124,9 +139,46 @@
                     return res.json();
                 }).then(function (data) {
                     showFlash();
+                    offerUndo(category);
                     if (data.counts) { paint(data.counts); }
                 }).catch(function () {
                     alert('Could not record that tap, please try again. / Kon deze telling niet opslaan, probeer opnieuw.');
+                });
+            };
+
+            /* Eight seconds is long enough to notice a wrong tap and short
+               enough that the next person cannot undo the one before them. */
+            function offerUndo(category) {
+                lastCategory = category;
+                undoBtn.hidden = false;
+                if (undoTimer) { clearTimeout(undoTimer); }
+                undoTimer = setTimeout(hideUndo, 8000);
+            }
+
+            function hideUndo() {
+                undoBtn.hidden = true;
+                lastCategory = null;
+                if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+            }
+
+            window.undoLast = function () {
+                if (!lastCategory) { return; }
+                var category = lastCategory;
+                hideUndo();
+
+                fetch(base + '/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: JSON.stringify({ category: category })
+                }).then(function (res) {
+                    return res.json().then(function (data) {
+                        if (!res.ok) { throw new Error(data.message || 'bad status'); }
+                        return data;
+                    });
+                }).then(function (data) {
+                    if (data.counts) { paint(data.counts); }
+                }).catch(function () {
+                    alert('Could not undo that, please tell an usher. / Kon dit niet ongedaan maken, waarschuw een gastheer.');
                 });
             };
 
