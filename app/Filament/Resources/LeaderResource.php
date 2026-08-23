@@ -44,6 +44,19 @@ class LeaderResource extends Resource
             fn ($r) => $r->whereNotNull('group_id'),
         );
 
+        /* The tenant-wide account is not unplaced, it is everywhere.
+           A super admin's role carries no group deliberately: that is how
+           "the whole tenant" is written, and LeaderScopeService::isSuperAdmin()
+           reads the permission level and ignores the group. Reading that null
+           as "lost" listed the bishop under a country, where a country admin
+           could open and edit him, which is a route to taking over the tenant.
+           They belong to no country and are managed by the group-wide login. */
+        $query->whereDoesntHave(
+            'leaderRoles',
+            fn ($r) => $r->where('is_active', true)
+                ->whereHas('roleDefinition', fn ($d) => $d->where('permission_level', 100)),
+        );
+
         return $query->where(fn ($q) => $q
             // Placed inside my country by their role.
             ->whereHas(

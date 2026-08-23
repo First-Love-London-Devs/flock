@@ -262,6 +262,46 @@ class AdminPanelScopeTest extends TestCase
         $this->assertContains('NobodyClaims', LeaderResource::getEloquentQuery()->pluck('username'));
     }
 
+    /**
+     * The bishop's role has no group ON PURPOSE: that is how "the whole
+     * tenant" is expressed, and LeaderScopeService::isSuperAdmin() checks the
+     * permission level and ignores the group entirely.
+     *
+     * Treating that deliberate null as "lost" put the tenant's highest
+     * privileged account into a country admin's list, where it could be
+     * opened and edited. A country admin able to change the super admin's
+     * password is a way to take over the whole tenant.
+     */
+    public function test_the_tenant_wide_super_admin_is_not_listed_under_any_country(): void
+    {
+        $bishop = RoleDefinition::create([
+            'name' => 'Bishop', 'slug' => 'bishop-test',
+            'permission_level' => 100, 'is_active' => true,
+        ]);
+        $member = Member::create([
+            'first_name' => 'Bishop', 'last_name' => 'Overall',
+            'member_type' => 'member', 'is_active' => true,
+        ]);
+        $leader = Leader::factory()->create(['username' => 'TheBishop', 'member_id' => $member->id]);
+        LeaderRole::create([
+            'leader_id' => $leader->id,
+            'role_definition_id' => $bishop->id,
+            'group_id' => null,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin($this->belgium));
+        $this->assertNotContains(
+            'TheBishop',
+            LeaderResource::getEloquentQuery()->pluck('username'),
+            'A country admin must not be able to reach the tenant-wide account.'
+        );
+
+        // The group-wide admin still manages them.
+        $this->actingAs($this->admin(null));
+        $this->assertContains('TheBishop', LeaderResource::getEloquentQuery()->pluck('username'));
+    }
+
     public function test_an_unscoped_admin_still_sees_everything(): void
     {
         $this->memberIn($this->antwerp, 'Belgian');
