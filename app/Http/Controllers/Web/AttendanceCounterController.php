@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AttendanceCountEntry;
 use App\Models\AttendanceCounter;
 use App\Models\Group;
+use App\Services\DomainScope;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -161,9 +162,26 @@ class AttendanceCounterController extends Controller
     /**
      * All Stream-type groups for this tenant (GroupType slug 'stream').
      */
+    /**
+     * The streams this address is allowed to count for.
+     *
+     * The counter is a public kiosk, so there is no login to scope by; the
+     * address it was opened at is all we have. DomainScope turns that into a
+     * country when the domain names one, and narrows nothing when it does not,
+     * so the group-wide address still lists everything.
+     *
+     * This listed every stream in the tenant. That went unnoticed while
+     * Belgium was the only country with any, and the moment Switzerland got
+     * eight, Belgium's ushers were offered Swiss churches to count for. It
+     * also guards resolveStream(), so a Belgian address cannot open a Swiss
+     * counter by URL either.
+     */
     private function streams(): Collection
     {
+        $allowed = DomainScope::groupIds();
+
         return Group::whereHas('groupType', fn ($q) => $q->where('slug', 'stream'))
+            ->when($allowed !== null, fn ($q) => $q->whereIn('groups.id', $allowed))
             ->orderBy('name')
             ->get();
     }

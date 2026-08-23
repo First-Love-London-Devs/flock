@@ -44,6 +44,15 @@ class AttendanceCorrectionTest extends TestCase
         $this->stream = Group::create([
             'name' => 'Jesus Encounter Service', 'group_type_id' => $type->id, 'is_active' => true,
         ]);
+
+        // Cached per request in production; per process in tests.
+        \App\Services\DomainScope::forget();
+    }
+
+    protected function tearDown(): void
+    {
+        \App\Services\DomainScope::forget();
+        parent::tearDown();
     }
 
     /* Paths, not route(): tenant route names do not resolve through the
@@ -64,6 +73,58 @@ class AttendanceCorrectionTest extends TestCase
     private function undo(string $category = 'first_time')
     {
         return $this->postJson($this->path('undo'), ['category' => $category]);
+    }
+
+    /**
+     * The counter is public, so the address it was opened at is the only thing
+     * available to scope it. It listed every stream in the tenant, which went
+     * unnoticed while Belgium was the only country that had any: the morning
+     * Switzerland got eight, Belgium's ushers were offered Swiss churches.
+     */
+    public function test_the_landing_page_only_offers_streams_from_this_addresss_country(): void
+    {
+        $country = GroupType::create([
+            'name' => 'Country', 'slug' => 'country', 'level' => 0,
+            'tracks_attendance' => false, 'is_active' => true,
+        ]);
+        $type = GroupType::where('slug', 'stream')->firstOrFail();
+
+        $belgium = Group::create(['name' => 'Belgium', 'group_type_id' => $country->id, 'is_active' => true]);
+        Group::create(['name' => 'Gospel Experience Service', 'group_type_id' => $type->id,
+            'parent_id' => $belgium->id, 'is_active' => true]);
+
+        $swiss = Group::create(['name' => 'Switzerland', 'group_type_id' => $country->id, 'is_active' => true]);
+        Group::create(['name' => 'Basel', 'group_type_id' => $type->id,
+            'parent_id' => $swiss->id, 'is_active' => true]);
+
+        \App\Services\DomainScope::fake('Belgium');
+
+        $this->get('/attendance-counter')
+            ->assertOk()
+            ->assertSee('Gospel Experience Service')
+            ->assertDontSee('Basel');
+    }
+
+    public function test_a_counter_from_another_country_cannot_be_opened_by_url(): void
+    {
+        $country = GroupType::create([
+            'name' => 'Country', 'slug' => 'country', 'level' => 0,
+            'tracks_attendance' => false, 'is_active' => true,
+        ]);
+        $type = GroupType::where('slug', 'stream')->firstOrFail();
+        $belgium = Group::create(['name' => 'Belgium', 'group_type_id' => $country->id, 'is_active' => true]);
+        Group::create(['name' => 'Gospel Experience Service', 'group_type_id' => $type->id,
+            'parent_id' => $belgium->id, 'is_active' => true]);
+        $swiss = Group::create(['name' => 'Switzerland', 'group_type_id' => $country->id, 'is_active' => true]);
+        Group::create(['name' => 'Basel', 'group_type_id' => $type->id,
+            'parent_id' => $swiss->id, 'is_active' => true]);
+
+        \App\Services\DomainScope::fake('Belgium');
+
+        // Guessing the URL must not work either, or the list is only a curtain.
+        $this->get('/attendance-counter/basel')->assertNotFound();
+        $this->post('/attendance-counter/basel/increment', ['category' => 'first_time'])
+            ->assertNotFound();
     }
 
     public function test_undoing_a_tap_lowers_the_total_and_removes_the_tap_from_the_log(): void
