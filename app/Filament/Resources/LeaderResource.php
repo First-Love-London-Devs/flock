@@ -54,6 +54,7 @@ class LeaderResource extends Resource
         $query->whereDoesntHave(
             'leaderRoles',
             fn ($r) => $r->where('is_active', true)
+                ->whereNull('group_id')
                 ->whereHas('roleDefinition', fn ($d) => $d->where('permission_level', 100)),
         );
 

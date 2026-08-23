@@ -37,8 +37,19 @@ class LeaderScopeService
             return $this->cachedIsSuperAdmin = false;
         }
 
+        /*
+         * Tenant-wide means a top-level role attached to NO group.
+         *
+         * The group used to be ignored entirely, so a bishop over one country
+         * still reached all forty churches and there was no way to say
+         * otherwise: pointing the role at Belgium changed nothing. Reading the
+         * group makes the distinction expressible. No group still means the
+         * whole tenant, so every existing account behaves exactly as before;
+         * a group means everything beneath it, via the ordinary path below.
+         */
         return $this->cachedIsSuperAdmin = $this->leader->leaderRoles()
             ->where('is_active', true)
+            ->whereNull('group_id')
             ->whereHas('roleDefinition', fn ($q) => $q->where('permission_level', 100))
             ->exists();
     }
