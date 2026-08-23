@@ -211,6 +211,57 @@ class AdminPanelScopeTest extends TestCase
         );
     }
 
+    /**
+     * Showing every unplaced leader to every country put thirteen Belgian
+     * leaders into Switzerland's list. A leader is still a person, so the
+     * member behind them decides who claims them.
+     */
+    public function test_an_unplaced_leader_belongs_to_the_country_their_member_is_in(): void
+    {
+        $definition = RoleDefinition::create([
+            'name' => 'Bacenta Leader', 'slug' => 'bacenta-leader-claim',
+            'permission_level' => 40, 'is_active' => true,
+        ]);
+
+        foreach ([[$this->antwerp, 'BelgianUnplaced'], [$this->stockholm, 'SwedishUnplaced']] as [$group, $name]) {
+            $member = Member::create([
+                'first_name' => $name, 'last_name' => 'X',
+                'member_type' => 'member', 'is_active' => true,
+            ]);
+            $member->groups()->attach($group->id);
+
+            $leader = Leader::factory()->create(['username' => $name, 'member_id' => $member->id]);
+            // A role that points at nothing: the shape that caused the bug.
+            LeaderRole::create([
+                'leader_id' => $leader->id,
+                'role_definition_id' => $definition->id,
+                'group_id' => null,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->actingAs($this->admin($this->belgium));
+        $names = LeaderResource::getEloquentQuery()->pluck('username');
+
+        $this->assertContains('BelgianUnplaced', $names, 'Belgium should claim their own.');
+        $this->assertNotContains('SwedishUnplaced', $names, 'Sweden\'s unplaced leader must not leak into Belgium.');
+    }
+
+    public function test_a_leader_nobody_can_claim_is_shown_to_everyone(): void
+    {
+        // No role, and the member is in no group either. Hiding them means
+        // nobody can ever place them.
+        $member = Member::create([
+            'first_name' => 'Orphan', 'last_name' => 'Leader',
+            'member_type' => 'member', 'is_active' => true,
+        ]);
+        Leader::factory()->create(['username' => 'NobodyClaims', 'member_id' => $member->id]);
+
+        $this->actingAs($this->admin($this->belgium));
+
+        $this->assertContains('NobodyClaims', LeaderResource::getEloquentQuery()->pluck('username'));
+    }
+
     public function test_an_unscoped_admin_still_sees_everything(): void
     {
         $this->memberIn($this->antwerp, 'Belgian');

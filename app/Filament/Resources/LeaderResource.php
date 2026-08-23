@@ -21,32 +21,42 @@ class LeaderResource extends Resource
     /* A leader belongs to the tree through the groups their active roles
        are attached to.
 
-       An UNPLACED leader is shown to every scoped admin as well. Unplaced
-       means either no role at all, or a role that points at no group, and
-       both happen in normal use: creating a leader is two steps, and "Make
-       Leader" allowed a role to be chosen without a group. Scoping purely on
-       "role inside my country" made both vanish the instant they were saved,
-       leaving the admin who had just created them unable to finish the job.
+       Unplaced leaders, meaning no role or a role pointing at no group, are
+       the awkward case. Showing them to everybody put thirteen Belgian
+       leaders in Switzerland's list, which is a leak. Hiding them made six
+       Swiss leaders invisible to the admin who had just created them.
 
-       The first version of this only covered "no role at all", which is why
-       six leaders with a group-less role went missing before anyone noticed.
-
-       Same trade as the group-less members on the API side, and for the same
-       reason: being seen by a country that turns out not to own them is
-       recoverable, being seen by nobody is not. */
+       Neither is necessary, because a leader is still a person: even when the
+       role says nothing, the member behind it usually sits in a group, and
+       that group has a country. So an unplaced leader is claimed by whichever
+       country their MEMBER is in, and only a leader whose member is in no
+       group at all, whom no country can claim, is shown to everyone. */
     protected static function applyGroupScope(Builder $query): Builder
     {
         $ids = User::currentScopeIds();
 
-        return $ids === null ? $query : $query->where(
-            fn ($q) => $q
-                ->whereHas(
-                    'leaderRoles',
-                    fn ($r) => $r->where('is_active', true)->whereIn('group_id', $ids),
-                )
-                ->orWhereDoesntHave('leaderRoles')
-                ->orWhereDoesntHave('leaderRoles', fn ($r) => $r->whereNotNull('group_id')),
+        if ($ids === null) {
+            return $query;
+        }
+
+        $unplaced = fn ($q) => $q->whereDoesntHave(
+            'leaderRoles',
+            fn ($r) => $r->whereNotNull('group_id'),
         );
+
+        return $query->where(fn ($q) => $q
+            // Placed inside my country by their role.
+            ->whereHas(
+                'leaderRoles',
+                fn ($r) => $r->where('is_active', true)->whereIn('group_id', $ids),
+            )
+            // Unplaced, but the person behind them is in my country.
+            ->orWhere(fn ($q2) => $unplaced($q2)
+                ->whereHas('member.groups', fn ($g) => $g->whereIn('groups.id', $ids)))
+            // Unplaced and the person is in no group either: nobody can claim
+            // them, so everyone sees them rather than nobody.
+            ->orWhere(fn ($q3) => $unplaced($q3)
+                ->whereDoesntHave('member.groups')));
     }
 
     protected static ?string $model = Leader::class;
