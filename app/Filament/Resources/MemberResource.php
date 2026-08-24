@@ -3,9 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Concerns\ScopesToAdminGroup;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
-
 use App\Filament\Resources\MemberResource\Pages;
 use App\Models\Group;
 use App\Models\Leader;
@@ -14,12 +11,15 @@ use App\Models\Member;
 use App\Models\NonMember;
 use App\Models\RoleDefinition;
 use App\Models\Setting;
+use App\Models\User;
+use App\Support\MemberCsvExport;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -345,6 +345,32 @@ class MemberResource extends Resource
                         false: fn ($query) => $query->whereDoesntHave('groups'),
                     ),
             ])
+            ->headerActions([
+                /*
+                 * Belgium asked to get the new converts out of the panel.
+                 * Rather than a button for that one list, this exports
+                 * whatever the table is currently showing: filter Type of
+                 * Member to New Convert and it is the new converts, filter it
+                 * to nothing and it is the whole roll. The filename follows
+                 * the filter so the file says what it holds.
+                 *
+                 * getFilteredTableQuery() starts from getEloquentQuery(), so
+                 * the admin's group confinement comes with it and a country
+                 * admin can only ever export their own country.
+                 */
+                Tables\Actions\Action::make('export')
+                    ->label('Export to CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->action(function ($livewire) {
+                        $type = $livewire->getTableFilterState('member_type')['value'] ?? null;
+
+                        return MemberCsvExport::stream(
+                            $livewire->getFilteredTableQuery(),
+                            MemberCsvExport::filename($type ?: null),
+                        );
+                    }),
+            ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -434,6 +460,16 @@ class MemberResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    // For when the wanted list is a handful of ticked rows
+                    // rather than anything a filter describes.
+                    Tables\Actions\BulkAction::make('exportSelected')
+                        ->label('Export selected to CSV')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(fn (Collection $records) => MemberCsvExport::stream(
+                            $records,
+                            MemberCsvExport::filename(),
+                        )),
                     /*
                      * Assigning to a bacenta is the step that makes a member
                      * countable: bacentas and basontas are the only tiers that
