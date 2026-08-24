@@ -193,6 +193,65 @@ class NewConvertsReportTest extends TestCase
         $this->assertStringContainsString('Antwerp Centre', $csv);
     }
 
+    public function test_a_service_covers_every_group_beneath_it(): void
+    {
+        // Two bacentas under one service, one under another.
+        $stream = GroupType::create(['name' => 'Stream', 'slug' => 'stream', 'level' => 2,
+            'tracks_attendance' => false, 'is_active' => true]);
+        $bacenta = GroupType::where('slug', 'bacenta')->firstOrFail();
+
+        $ges = Group::create(['name' => 'Gospel Experience Service', 'group_type_id' => $stream->id,
+            'parent_id' => $this->belgium->id, 'is_active' => true]);
+        $jes = Group::create(['name' => 'Jesus Encounter Service', 'group_type_id' => $stream->id,
+            'parent_id' => $this->belgium->id, 'is_active' => true]);
+
+        $underGes = Group::create(['name' => 'Ghent', 'group_type_id' => $bacenta->id,
+            'parent_id' => $ges->id, 'is_active' => true]);
+        $underJes = Group::create(['name' => 'Liege', 'group_type_id' => $bacenta->id,
+            'parent_id' => $jes->id, 'is_active' => true]);
+
+        $this->markMember($underGes, '2026-08-10', 'GospelPerson');
+        $this->markMember($underJes, '2026-08-10', 'JesusPerson');
+
+        $names = NewConvertsReport::rows(null, null, $ges->id)->pluck('name')->implode(' ');
+
+        $this->assertStringContainsString('GospelPerson', $names, 'A service must reach its bacentas.');
+        $this->assertStringNotContainsString('JesusPerson', $names);
+    }
+
+    public function test_a_group_filter_narrows_to_that_one_group(): void
+    {
+        $other = Group::create(['name' => 'Ghent', 'group_type_id' => GroupType::where('slug', 'bacenta')->first()->id,
+            'parent_id' => $this->belgium->id, 'is_active' => true]);
+
+        $this->markMember($this->antwerp, '2026-08-10', 'Antwerper');
+        $this->markMember($other, '2026-08-10', 'Ghenter');
+
+        $names = NewConvertsReport::rows(null, null, null, $this->antwerp->id)->pluck('name')->implode(' ');
+
+        $this->assertStringContainsString('Antwerper', $names);
+        $this->assertStringNotContainsString('Ghenter', $names);
+    }
+
+    /** A filter must never reach past the admin's own country. */
+    public function test_choosing_another_countrys_group_returns_nothing_rather_than_that_country(): void
+    {
+        $this->markMember($this->stockholm, '2026-08-10', 'Swede');
+
+        $this->actingAs($this->admin($this->belgium));
+
+        $this->assertCount(0, NewConvertsReport::rows(null, null, null, $this->stockholm->id),
+            'Naming a group outside your scope must not grant it.');
+    }
+
+    public function test_the_filename_says_where_the_export_was_narrowed_to(): void
+    {
+        $this->assertSame(
+            'new-converts-antwerp-centre-2026-01-01-to-2026-08-24.csv',
+            NewConvertsCsvExport::filename('2026-01-01', '2026-08-24', 'Antwerp Centre')
+        );
+    }
+
     /** A blade error here would never show up in the data tests above. */
     public function test_the_page_renders_with_and_without_rows(): void
     {

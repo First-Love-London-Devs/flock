@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Attendance;
+use App\Models\Group;
 use App\Models\Member;
 use App\Models\NonMemberAttendance;
 use App\Models\User;
@@ -34,16 +35,55 @@ class NewConvertsReport
     /**
      * @param  string|null  $from  inclusive date, 'Y-m-d'
      * @param  string|null  $to  inclusive date, 'Y-m-d'
+     * @param  int|null  $service  a stream group; everything beneath it counts
+     * @param  int|null  $group  one exact group, usually a bacenta
      * @return Collection<int, array>
      */
-    public static function rows(?string $from = null, ?string $to = null): Collection
-    {
-        $scope = User::currentScopeIds();
+    public static function rows(
+        ?string $from = null,
+        ?string $to = null,
+        ?int $service = null,
+        ?int $group = null,
+    ): Collection {
+        $scope = self::narrow(User::currentScopeIds(), $service, $group);
 
         return self::members($scope, $from, $to)
             ->merge(self::nonMembers($scope, $from, $to))
             ->sortByDesc('last_seen')
             ->values();
+    }
+
+    /**
+     * Fold the two filters into the scope rather than applying them separately.
+     *
+     * Both narrow the same thing — which groups' attendance counts — so they
+     * belong in the same set of ids as the admin's own confinement. Doing it
+     * this way makes it impossible to write a filter that widens: the result
+     * is always an intersection, so picking a service in another country
+     * returns nothing rather than that country.
+     *
+     * A service means the stream and everything under it, because the flag
+     * sits on a bacenta's attendance, not on the stream's.
+     */
+    private static function narrow(?Collection $scope, ?int $service, ?int $group): ?Collection
+    {
+        if ($service === null && $group === null) {
+            return $scope;
+        }
+
+        $wanted = $service !== null
+            ? (Group::find($service)?->allGroupIds() ?? collect())
+            : collect();
+
+        if ($group !== null) {
+            $wanted = $service !== null && ! $wanted->contains($group)
+                // A group outside the chosen service: the two disagree, and
+                // the honest answer to a contradiction is nothing.
+                ? collect()
+                : collect([$group]);
+        }
+
+        return $scope === null ? $wanted->values() : $wanted->intersect($scope)->values();
     }
 
     private static function members($scope, ?string $from, ?string $to): Collection

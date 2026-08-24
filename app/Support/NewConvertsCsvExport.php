@@ -44,12 +44,24 @@ class NewConvertsCsvExport
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    public static function filename(?string $from = null, ?string $to = null): string
+    public static function filename(?string $from = null, ?string $to = null, ?string $where = null): string
     {
         $window = $from || $to
             ? ($from ?: 'start').'-to-'.($to ?: Carbon::now()->format('Y-m-d'))
             : Carbon::now()->format('Y-m-d');
 
-        return "new-converts-{$window}.csv";
+        // Whichever group or service the export was narrowed to, so a folder of
+        // these can be told apart without opening them.
+        $place = $where ? self::slug($where).'-' : '';
+
+        return "new-converts-{$place}{$window}.csv";
+    }
+
+    private static function slug(string $value): string
+    {
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT', $value) ?: $value;
+        $slug = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', $ascii) ?? '');
+
+        return trim($slug, '-') ?: 'filtered';
     }
 }
