@@ -434,6 +434,50 @@ class MemberResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    /*
+                     * Assigning to a bacenta is the step that makes a member
+                     * countable: bacentas and basontas are the only tiers that
+                     * track attendance. Without this, moving a country's roll
+                     * onto its bacentas meant editing members one at a time,
+                     * which for Switzerland's 78 is an afternoon.
+                     */
+                    Tables\Actions\BulkAction::make('assignBacenta')
+                        ->label('Assign to Bacenta')
+                        ->icon('heroicon-o-user-group')
+                        ->form([
+                            Forms\Components\Select::make('bacenta_group_id')
+                                ->label('Bacenta')
+                                ->required()
+                                ->searchable()
+                                ->preload()
+                                ->options(fn () => GroupResource::confineOptions(
+                                    Group::query()->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['bacenta']))
+                                )->orderBy('name')->pluck('name', 'id')),
+                            Forms\Components\Toggle::make('clear_holding_groups')
+                                ->label('Take them off the stream they were parked on')
+                                ->helperText('Members imported before their bacentas existed sit on a stream as a holding position. Leaving them there is untidy rather than harmful.')
+                                ->default(true),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
+                            $groupId = (int) $data['bacenta_group_id'];
+                            $streamIds = Group::whereHas('groupType', fn ($q) => $q->where('slug', 'stream'))->pluck('id');
+
+                            foreach ($records as $member) {
+                                $member->groups()->syncWithoutDetaching([
+                                    $groupId => ['is_primary' => true, 'joined_at' => now()->toDateString()],
+                                ]);
+                                if ($data['clear_holding_groups'] ?? false) {
+                                    $member->groups()->detach($streamIds);
+                                }
+                            }
+
+                            Notification::make()
+                                ->title($records->count().' member(s) now on a bacenta')
+                                ->body('They can be counted at a service from now on.')
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\BulkAction::make('assignBasonta')
                         ->label('Assign to Basonta')
                         ->icon('heroicon-o-user-group')
@@ -443,10 +487,11 @@ class MemberResource extends Resource
                                 ->required()
                                 ->searchable()
                                 ->preload()
-                                ->options(fn () => Group::query()
-                                    ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['basonta']))
-                                    ->orderBy('name')
-                                    ->pluck('name', 'id')),
+                                /* Confined like every other group picker: this
+                                   one still offered the whole tenant. */
+                                ->options(fn () => GroupResource::confineOptions(
+                                    Group::query()->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['basonta']))
+                                )->orderBy('name')->pluck('name', 'id')),
                         ])
                         ->action(function (Collection $records, array $data): void {
                             $groupId = (int) $data['basonta_group_id'];

@@ -302,6 +302,32 @@ class AdminPanelScopeTest extends TestCase
         $this->assertContains('TheBishop', LeaderResource::getEloquentQuery()->pluck('username'));
     }
 
+    /**
+     * Every other group picker was confined; the two bulk assignment pickers
+     * were not, so a country admin could move their own members into another
+     * country's bacenta. Where the members then vanish from their view.
+     */
+    public function test_the_bulk_assignment_pickers_only_offer_this_countrys_groups(): void
+    {
+        $bacenta = GroupType::create([
+            'name' => 'Bacenta', 'slug' => 'bacenta', 'level' => 4,
+            'tracks_attendance' => true, 'is_active' => true,
+        ]);
+        Group::create(['name' => 'Antwerp Bacenta 1', 'group_type_id' => $bacenta->id,
+            'parent_id' => $this->antwerp->id, 'is_active' => true]);
+        Group::create(['name' => 'Stockholm Bacenta 1', 'group_type_id' => $bacenta->id,
+            'parent_id' => $this->stockholm->id, 'is_active' => true]);
+
+        $this->actingAs($this->admin($this->belgium));
+
+        $offered = GroupResource::confineOptions(
+            Group::query()->whereHas('groupType', fn ($q) => $q->where('slug', 'bacenta'))
+        )->pluck('name');
+
+        $this->assertContains('Antwerp Bacenta 1', $offered);
+        $this->assertNotContains('Stockholm Bacenta 1', $offered);
+    }
+
     public function test_an_unscoped_admin_still_sees_everything(): void
     {
         $this->memberIn($this->antwerp, 'Belgian');
