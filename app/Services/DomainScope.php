@@ -34,6 +34,21 @@ class DomainScope
     private static Collection|false|null $cached = null;
 
     /**
+     * The connection holding the domains table.
+     *
+     * Domains are central and groups are per-tenant, so this class straddles
+     * two databases and must say which one it means every time. Public so the
+     * choice can be asserted: getting it wrong disables the whole class
+     * silently rather than failing, which is how it went unnoticed.
+     */
+    public static function centralConnection(): string
+    {
+        return (new Domain)->getConnectionName()
+            ?: config('tenancy.database.central_connection')
+            ?: config('database.default');
+    }
+
+    /**
      * Group ids the current domain confines a request to, or null for no
      * confinement at all.
      */
@@ -48,18 +63,40 @@ class DomainScope
         // No request at all: console commands, queued jobs, tests. Those
         // must not be silently narrowed to nothing.
         $host = Request::getHost();
-        if (! $host) { return null; }
+        if (! $host) {
+            return null;
+        }
 
         /* The central tables are not always present. Feature tests migrate
            only database/migrations/tenant, and a queue worker can run with
            tenancy initialised and no central connection to hand. Asking for
            a table that does not exist would throw and take a request down
-           over a feature that is meant to be optional. */
-        if (! Schema::hasTable('domains')) { return null; }
+           over a feature that is meant to be optional.
 
-        $domain = Domain::where('domain', $host)->first();
+           ⚠️ This check MUST name the central connection. It used to call
+           Schema::hasTable(), which asks the DEFAULT connection — and inside
+           an initialised tenant the default IS the tenant database, which has
+           no domains table. So on every real request this returned false and
+           the method bailed out returning null, which means "no confinement".
+           Every domain rule in the app was quietly inert in production while
+           its tests passed, because the tests all went through fake(). It
+           surfaced as Belgium's public attendance counter listing Basel,
+           Bern, Biel, Geneva and Zurich. */
+        try {
+            if (! Schema::connection(self::centralConnection())->hasTable('domains')) {
+                return null;
+            }
+
+            $domain = Domain::where('domain', $host)->first();
+        } catch (\Throwable) {
+            // No central connection configured at all.
+            return null;
+        }
+
         $name = $domain?->scope_group_name;
-        if (! $name) { return null; }
+        if (! $name) {
+            return null;
+        }
 
         /* Resolved inside the tenant, which is why this is a name and not
            an id: domains are central, groups are per-tenant. A name that
@@ -67,7 +104,9 @@ class DomainScope
            locking everyone out because a group was renamed would be a
            worse failure than showing them the whole tree. */
         $group = Group::where('name', $name)->first();
-        if (! $group) { return null; }
+        if (! $group) {
+            return null;
+        }
 
         self::$cached = $group->allGroupIds();
 
