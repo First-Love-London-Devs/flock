@@ -15,6 +15,15 @@
                     of them are not on the members roll yet.
                 </span>
             @endif
+            @if ($rows->where('on_roll', 'Welcome form')->count())
+                {{-- Counted separately rather than folded into the line above:
+                     somebody who filled in the welcome form may well already be
+                     on the roll, so claiming they are not would be a guess. --}}
+                <span class="text-info-600 dark:text-info-400">
+                    {{ number_format($rows->where('on_roll', 'Welcome form')->count()) }}
+                    came in through the welcome form.
+                </span>
+            @endif
         </p>
 
         <x-filament::button
@@ -54,9 +63,19 @@
                             <tr class="border-b border-gray-100 last:border-0 dark:border-gray-800">
                                 <td class="py-2 pr-4 font-medium">{{ $row['name'] }}</td>
                                 <td class="py-2 pr-4 tabular-nums">{{ $row['phone'] ?: '—' }}</td>
+                                {{--
+                                    Three sources now, so this shows what the row
+                                    actually says rather than testing for one value
+                                    and calling everything else a member. When the
+                                    welcome form was added, its people were being
+                                    labelled "Member", which is the one thing they
+                                    are known not to be.
+                                --}}
                                 <td class="py-2 pr-4">
                                     @if ($row['on_roll'] === 'Not on roll')
                                         <span class="text-warning-600 dark:text-warning-400">Not on roll</span>
+                                    @elseif ($row['on_roll'] === 'Welcome form')
+                                        <span class="text-info-600 dark:text-info-400">Welcome form</span>
                                     @else
                                         Member
                                     @endif

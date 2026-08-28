@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Group;
 use App\Models\Member;
 use App\Models\NonMemberAttendance;
+use App\Models\UnderstandingCampaign;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -29,6 +30,11 @@ use Illuminate\Support\Collection;
  * One row per person, not per service: someone marked on three Sundays is one
  * person to follow up, with the date they first appeared and the date they
  * were last seen.
+ *
+ * ⚠ THERE IS A THIRD SOURCE, added later: the public welcome form. Some
+ * churches never tick the register at all and their people arrive entirely
+ * through that form, so a list built only on attendance flags showed those
+ * churches nothing. See welcomeForm() for which answer counts and why.
  */
 class NewConvertsReport
 {
@@ -47,8 +53,18 @@ class NewConvertsReport
     ): Collection {
         $scope = self::narrow(User::currentScopeIds(), $service, $group);
 
-        return self::members($scope, $from, $to)
+        /*
+         * Start from a plain collection rather than merging into whichever one
+         * the first source happened to return. Each source builds rows of
+         * arrays, but they start life as Eloquent collections, and Eloquent's
+         * merge expects models: it calls getKey() on every incoming item and
+         * dies on an array. Which source is empty then decides whether the
+         * whole report works, which is not a thing that should decide anything.
+         */
+        return collect()
+            ->merge(self::members($scope, $from, $to))
             ->merge(self::nonMembers($scope, $from, $to))
+            ->merge(self::welcomeForm($scope, $from, $to))
             ->sortByDesc('last_seen')
             ->values();
     }
@@ -152,6 +168,72 @@ class NewConvertsReport
                 'nbs_status' => '',
             ];
         })->values();
+    }
+
+    /**
+     * People who came in through the welcome form rather than the register.
+     *
+     * ⚠ THIS IS A THIRD SOURCE, AND IT IS THE ONE BELGIUM ACTUALLY USES. The two
+     * above read flags a leader ticks while taking attendance. Some churches
+     * never tick them: their people fill in the public welcome form instead, so
+     * the same Sunday shows names on the Understanding Campaign screen and
+     * nothing here. That is what prompted this, and it was not a bug, it was the
+     * report looking in a place those churches do not put anything.
+     *
+     * ⚠ ONLY THE RE-DEDICATING ANSWER COUNTS. The form asks two separate
+     * questions: "Are you re-dedicating your life to Christ?" and "Is this your
+     * first time attending this church?". Only the first is a decision for
+     * Christ; the second is a visitor, who may have been a believer for thirty
+     * years. Counting first-timers here would inflate a number the leadership
+     * reads as conversions.
+     */
+    private static function welcomeForm($scope, ?string $from, ?string $to): Collection
+    {
+        $query = UnderstandingCampaign::query()
+            ->where('re_dedicating', true)
+            ->with(['stream:id,name', 'allocatedGroup:id,name']);
+
+        /*
+         * A submission is tied to a stream, and once someone has been placed it
+         * also carries a bacenta. Either being in scope makes it visible, so a
+         * country admin still sees submissions that nobody has allocated yet.
+         * An empty scope must still match nothing, or a misconfigured admin
+         * would quietly see every country.
+         */
+        if ($scope !== null) {
+            $ids = $scope->all();
+            $query->where(function ($q) use ($ids) {
+                $q->whereIn('stream_id', $ids)->orWhereIn('allocated_group_id', $ids);
+            });
+        }
+        if ($from) {
+            $query->whereDate('attended_on', '>=', $from);
+        }
+        if ($to) {
+            $query->whereDate('attended_on', '<=', $to);
+        }
+
+        // One row per person, as with the other two: somebody who filled the
+        // form on three Sundays is one person to follow up, not three.
+        return $query->get()
+            ->groupBy(fn ($r) => mb_strtolower(trim($r->first_name.' '.$r->last_name)).'|'.trim((string) $r->phone_number))
+            ->map(function ($entries) {
+                $latest = $entries->sortByDesc('attended_on')->first();
+
+                return [
+                    'name' => trim($latest->first_name.' '.$latest->last_name),
+                    'phone' => $latest->phone_number,
+                    // The welcome form does not ask for an email.
+                    'email' => null,
+                    'on_roll' => 'Welcome form',
+                    'group' => $latest->allocatedGroup?->name ?? $latest->stream?->name,
+                    'first_seen' => self::date($entries->min(fn ($r) => $r->attended_on?->toDateString())),
+                    'last_seen' => self::date($entries->max(fn ($r) => $r->attended_on?->toDateString())),
+                    'times_marked' => $entries->count(),
+                    'nbs_status' => '',
+                ];
+            })
+            ->values();
     }
 
     /**

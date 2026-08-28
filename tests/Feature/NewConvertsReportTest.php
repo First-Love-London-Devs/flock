@@ -10,6 +10,7 @@ use App\Models\GroupType;
 use App\Models\Member;
 use App\Models\NonMember;
 use App\Models\NonMemberAttendance;
+use App\Models\UnderstandingCampaign;
 use App\Models\User;
 use App\Support\NewConvertsCsvExport;
 use App\Support\NewConvertsReport;
@@ -90,6 +91,27 @@ class NewConvertsReportTest extends TestCase
         ]);
 
         return $person;
+    }
+
+    /**
+     * Somebody who came in through the public welcome form instead of the
+     * register. `re_dedicating` is the question that means a decision for
+     * Christ; `first_time` only means they had not been to this church before.
+     */
+    private function welcomeForm(Group $stream, string $date, string $name, bool $reDedicating = true, bool $firstTime = false): UnderstandingCampaign
+    {
+        return UnderstandingCampaign::create([
+            'stream_id' => $stream->id,
+            'attended_on' => $date,
+            'first_name' => $name,
+            'last_name' => 'Vandenberg',
+            'street_name' => 'Kerkstraat 1',
+            'postal_code' => '2000',
+            'phone_number' => '0470999888',
+            're_dedicating' => $reDedicating,
+            'first_time' => $firstTime,
+            'who_invited' => 'A friend',
+        ]);
     }
 
     private function admin(?Group $scope): User
@@ -175,6 +197,79 @@ class NewConvertsReportTest extends TestCase
         ]);
 
         $this->assertCount(0, NewConvertsReport::rows());
+    }
+
+    /**
+     * The reason this source exists at all. Belgium's people fill in the
+     * welcome form and nobody ticks the register, so before this the list was
+     * empty for them on a Sunday that plainly had converts.
+     */
+    public function test_the_welcome_form_puts_people_on_the_list(): void
+    {
+        $this->welcomeForm($this->antwerp, '2026-08-23', 'Amara');
+
+        $rows = NewConvertsReport::rows(null, null);
+
+        $this->assertSame(['Amara Vandenberg'], $rows->pluck('name')->all());
+        $this->assertSame('Welcome form', $rows->first()['on_roll']);
+        $this->assertSame('2026-08-23', $rows->first()['last_seen']);
+    }
+
+    /**
+     * ⚠ A first-time visitor is not a convert. The form asks the two things
+     * separately and only one of them is a decision for Christ; counting both
+     * would inflate a number the leadership reads as conversions.
+     */
+    public function test_a_first_time_visitor_who_did_not_re_dedicate_is_not_a_convert(): void
+    {
+        $this->welcomeForm($this->antwerp, '2026-08-23', 'Just Visiting', reDedicating: false, firstTime: true);
+
+        $this->assertCount(0, NewConvertsReport::rows(null, null));
+    }
+
+    public function test_the_welcome_form_respects_the_country_an_admin_is_confined_to(): void
+    {
+        $this->welcomeForm($this->antwerp, '2026-08-23', 'Amara');
+        $this->welcomeForm($this->stockholm, '2026-08-23', 'Elsa');
+
+        $this->actingAs($this->admin($this->belgium));
+
+        $this->assertSame(['Amara Vandenberg'], NewConvertsReport::rows(null, null)->pluck('name')->all());
+    }
+
+    public function test_the_welcome_form_respects_the_date_window(): void
+    {
+        $this->welcomeForm($this->antwerp, '2026-08-23', 'Amara');
+
+        $this->assertCount(1, NewConvertsReport::rows('2026-08-23', '2026-08-23'));
+        $this->assertCount(0, NewConvertsReport::rows('2026-08-24', '2026-08-31'));
+    }
+
+    /** Filling the form on three Sundays is still one person to follow up. */
+    public function test_the_same_person_on_the_form_twice_is_one_row(): void
+    {
+        $this->welcomeForm($this->antwerp, '2026-08-16', 'Amara');
+        $this->welcomeForm($this->antwerp, '2026-08-23', 'Amara');
+
+        $rows = NewConvertsReport::rows(null, null);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(2, $rows->first()['times_marked']);
+        $this->assertSame('2026-08-16', $rows->first()['first_seen']);
+        $this->assertSame('2026-08-23', $rows->first()['last_seen']);
+    }
+
+    /** All three sources appear together, which is the point. */
+    public function test_the_register_and_the_welcome_form_appear_in_one_list(): void
+    {
+        $this->markMember($this->antwerp, '2026-08-23', 'Register');
+        $this->welcomeForm($this->antwerp, '2026-08-23', 'Form');
+
+        $this->assertEqualsCanonicalizing(
+            ['Welcome form'],
+            NewConvertsReport::rows(null, null)->where('name', 'Form Vandenberg')->pluck('on_roll')->all()
+        );
+        $this->assertCount(2, NewConvertsReport::rows(null, null));
     }
 
     public function test_the_csv_carries_the_follow_up_columns(): void
