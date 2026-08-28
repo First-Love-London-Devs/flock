@@ -3,22 +3,77 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Concerns\ScopesToAdminGroup;
-
 use App\Filament\Resources\UnderstandingCampaignResource\Pages;
+use App\Models\Group;
 use App\Models\UnderstandingCampaign;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class UnderstandingCampaignResource extends Resource
 {
     use ScopesToAdminGroup;
 
+    /**
+     * ⚠ Not a single column, so the trait's simple version is overridden below.
+     *
+     * Confining on `allocated_group_id` alone was wrong in a way that hid work
+     * rather than leaking it: a submission is unallocated until somebody places
+     * it, so a country admin could not see the very entries they were supposed
+     * to allocate. Worse, the "Not yet allocated" filter could never return
+     * anything for them, because the base query had already dropped every row
+     * with a null there.
+     */
     protected static function scopeColumn(): ?string
     {
-        return 'allocated_group_id';
+        return null;
+    }
+
+    /**
+     * A submission belongs to this admin if the stream it came in through is
+     * theirs, or if it has been allocated into their tree. Either is enough:
+     * the first covers everything before allocation, the second covers a
+     * submission moved into a group beneath them afterwards.
+     */
+    protected static function applyGroupScope(Builder $query): Builder
+    {
+        $ids = User::currentScopeIds();
+
+        // null is the group-wide login and stays unrestricted. An empty
+        // collection must still filter, or a misconfigured admin sees the lot.
+        if ($ids === null) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($ids) {
+            $q->whereIn('stream_id', $ids)->orWhereIn('allocated_group_id', $ids);
+        });
+    }
+
+    /**
+     * The streams this admin may filter by.
+     *
+     * Its own method so the filter and its test share one implementation:
+     * a scoping rule that the test reimplements is a scoping rule that can
+     * pass while the screen is wrong.
+     */
+    public static function streamOptions(): Collection
+    {
+        $ids = User::currentScopeIds();
+
+        $streams = Group::query()
+            ->whereHas('groupType', fn ($q) => $q->whereRaw('LOWER(slug) = ?', ['stream']));
+
+        if ($ids !== null) {
+            $streams->whereIn('id', $ids);
+        }
+
+        return $streams->orderBy('name')->pluck('name', 'id');
     }
 
     protected static ?string $model = UnderstandingCampaign::class;
@@ -82,9 +137,20 @@ class UnderstandingCampaignResource extends Resource
             ])
             ->defaultSort('attended_on', 'desc')
             ->filters([
+                /*
+                 * ⚠ The options have to be confined too, not just the rows.
+                 *
+                 * `->relationship('stream', 'name')` lists every stream in the
+                 * tenant. The rows were already scoped, so a Belgium admin was
+                 * not seeing Swiss submissions, but the dropdown still named
+                 * every Swiss and Dutch church back at them: Basel, Bern, Biel,
+                 * Amsterdam. A filter that offers you forty churches and returns
+                 * nothing for thirty-nine of them is also just broken.
+                 */
                 Tables\Filters\SelectFilter::make('stream_id')
                     ->label('Stream')
-                    ->relationship('stream', 'name'),
+                    ->options(fn () => static::streamOptions())
+                    ->searchable(),
                 Tables\Filters\Filter::make('unallocated')
                     ->label('Not yet allocated')
                     ->query(fn ($query) => $query->whereNull('allocated_group_id')),
