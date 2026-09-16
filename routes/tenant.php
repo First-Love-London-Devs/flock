@@ -166,6 +166,14 @@ Route::middleware([
             Route::post('bacentas', [AdminController::class, 'createBacenta']);
             Route::put('bacentas/{id}', [AdminController::class, 'updateBacenta'])->whereNumber('id');
             Route::delete('bacentas/{id}', [AdminController::class, 'deactivateBacenta'])->whereNumber('id');
+
+            // Leadership: appoint/relieve a member as cell or ministry leader.
+            Route::get('members/{id}/leadership', [AdminController::class, 'memberLeadership'])->whereNumber('id');
+            Route::post('members/{id}/leadership', [AdminController::class, 'assignLeadershipRole'])->whereNumber('id');
+            Route::delete('members/{id}/leadership/{leaderRoleId}', [AdminController::class, 'removeLeadershipRole'])->whereNumber('id')->whereNumber('leaderRoleId');
+
+            // Which Bacentas have submitted this week.
+            Route::get('submissions', [AdminController::class, 'submissions']);
         });
 
         Route::prefix('understanding-campaigns')->middleware([CheckRole::class.':understanding-campaign'])->group(function () {
