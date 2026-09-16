@@ -37,6 +37,7 @@ class MakeTestAdmin extends Command
         {--group= : governorship to scope to — a group id or a name (default: the governorship with the most Bacentas)}
         {--whole-church : scope to the biggest group overall instead of one governorship}
         {--list : just list the governorships (constituencies) with Bacenta counts, then exit}
+        {--where-bacentas : list every group (any type) that has Bacentas directly attached, then exit}
         {--inspect= : print the full tree under this group (id or name), incl inactive, then exit}';
 
     protected $description = 'Create/refresh a leader with the admin role on a tenant for testing';
@@ -62,13 +63,42 @@ class MakeTestAdmin extends Command
         $groupOpt = $this->option('group');
         $wholeChurch = (bool) $this->option('whole-church');
         $listOnly = (bool) $this->option('list');
+        $whereBacentas = (bool) $this->option('where-bacentas');
         $inspect = $this->option('inspect');
         $issued = null;
         $rows = null;
         $tree = null;
+        $where = null;
 
-        $tenant->run(function () use ($username, $groupOpt, $wholeChurch, $listOnly, $inspect, &$issued, &$rows, &$tree) {
+        $tenant->run(function () use ($username, $groupOpt, $wholeChurch, $listOnly, $whereBacentas, $inspect, &$issued, &$rows, &$tree, &$where) {
             $cellTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
+
+            // Where do Bacentas actually hang? Every group that directly parents
+            // at least one active Bacenta, with type + count.
+            if ($whereBacentas) {
+                $typeName = GroupType::pluck('slug', 'id')->all();
+                $groups = Group::where('is_active', true)->get(['id', 'parent_id', 'group_type_id', 'name']);
+                $byId = $groups->keyBy('id');
+                $counts = [];
+                foreach ($groups as $g) {
+                    if ((int) $g->group_type_id === $cellTypeId && $g->parent_id) {
+                        $counts[$g->parent_id] = ($counts[$g->parent_id] ?? 0) + 1;
+                    }
+                }
+                $where = [];
+                foreach ($counts as $pid => $cnt) {
+                    $p = $byId[$pid] ?? null;
+                    $where[] = [
+                        'id' => $pid,
+                        'name' => $p->name ?? '(missing/inactive parent)',
+                        'type' => $p ? ($typeName[$p->group_type_id] ?? $p->group_type_id) : '?',
+                        'bacentas' => $cnt,
+                    ];
+                }
+                usort($where, fn ($a, $b) => $b['bacentas'] <=> $a['bacentas']);
+
+                return;
+            }
 
             // Inspect mode: walk a group's whole subtree, INCLUDING inactive groups,
             // so we can see why a governorship shows 0 Bacentas.
@@ -236,6 +266,19 @@ class MakeTestAdmin extends Command
                 'bacentas' => $subtreeCells($group),
             ];
         });
+
+        if ($whereBacentas) {
+            if (! $where) {
+                $this->warn('No group has any active Bacenta attached on this tenant.');
+
+                return self::SUCCESS;
+            }
+            $this->table(['Parent id', 'Group', 'Type', 'Bacentas'],
+                array_map(fn ($r) => [$r['id'], $r['name'], $r['type'], $r['bacentas']], $where));
+            $this->comment('These are the groups Bacentas hang off. Scope the admin to one with --group=<id or name>.');
+
+            return self::SUCCESS;
+        }
 
         if ($inspect !== null && $inspect !== '') {
             if (! $tree) {
