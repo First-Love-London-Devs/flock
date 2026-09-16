@@ -63,23 +63,50 @@ class MakeTestAdmin extends Command
 
             // The group the admin sits on. Default: the active group whose subtree
             // holds the most Bacentas, so there is plenty in scope to test with.
-            $cellTypeId = GroupType::where('slug', 'cell-group')->value('id');
+            // Computed in memory in one pass — a per-group subtree query would be
+            // pathological on a big tree (the whole Eurozone lives under gochurch).
+            $cellTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
+            $bacentasInScope = 0;
+
             if ($groupOpt) {
                 $group = Group::find((int) $groupOpt);
+                if ($group) {
+                    $bacentasInScope = Group::whereIn('id', $group->allGroupIds())
+                        ->where('group_type_id', $cellTypeId)->where('is_active', true)->count();
+                }
             } else {
-                $group = Group::where('is_active', true)->get()
-                    ->sortByDesc(fn ($g) => Group::whereIn('id', $g->allGroupIds())
-                        ->where('group_type_id', $cellTypeId)->count())
-                    ->first();
+                $all = Group::where('is_active', true)->get(['id', 'parent_id', 'group_type_id', 'name']);
+                $childrenBy = [];
+                foreach ($all as $g) {
+                    $childrenBy[$g->parent_id][] = $g;
+                }
+                $memo = [];
+                $subtreeCells = function ($g) use (&$subtreeCells, $childrenBy, $cellTypeId, &$memo) {
+                    if (isset($memo[$g->id])) {
+                        return $memo[$g->id];
+                    }
+                    $n = ((int) $g->group_type_id === $cellTypeId) ? 1 : 0;
+                    foreach ($childrenBy[$g->id] ?? [] as $child) {
+                        $n += $subtreeCells($child);
+                    }
+
+                    return $memo[$g->id] = $n;
+                };
+                $group = null;
+                foreach ($all as $g) {
+                    $n = $subtreeCells($g);
+                    if ($n > $bacentasInScope) {
+                        $bacentasInScope = $n;
+                        $group = $g;
+                    }
+                }
+                $group = $group ?? $all->first();
             }
             if (! $group) {
                 $this->error('No group found to scope the admin to.');
 
                 return;
             }
-
-            $bacentasInScope = Group::whereIn('id', $group->allGroupIds())
-                ->where('group_type_id', $cellTypeId)->where('is_active', true)->count();
 
             $password = Str::password(12, true, true, false);
 
