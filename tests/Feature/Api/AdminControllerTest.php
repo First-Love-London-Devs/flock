@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Group;
+use App\Models\GroupType;
 use App\Models\Leader;
 use App\Models\LeaderRole;
 use App\Models\RoleDefinition;
@@ -16,8 +17,11 @@ class AdminControllerTest extends TestCase
     use BuildsGovernanceFixtures;
 
     private RoleDefinition $adminRole;
+
     private Group $constituency;
+
     private Group $bacenta;
+
     private Leader $admin;
 
     protected function setUp(): void
@@ -45,11 +49,12 @@ class AdminControllerTest extends TestCase
     {
         $leader = Leader::factory()->create();
         LeaderRole::factory()->create([
-            'leader_id'          => $leader->id,
+            'leader_id' => $leader->id,
             'role_definition_id' => $this->adminRole->id,
-            'group_id'           => $group->id,
-            'is_active'          => true,
+            'group_id' => $group->id,
+            'is_active' => true,
         ]);
+
         return $leader;
     }
 
@@ -93,7 +98,7 @@ class AdminControllerTest extends TestCase
         $r = $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/v1/admin/members', [
                 'first_name' => 'Jane',
-                'last_name'  => 'Doe',
+                'last_name' => 'Doe',
             ])
             ->assertOk();
 
@@ -106,7 +111,7 @@ class AdminControllerTest extends TestCase
         $r = $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/v1/admin/members', [
                 'first_name' => 'John',
-                'last_name'  => 'Smith',
+                'last_name' => 'Smith',
                 'bacenta_id' => $this->bacenta->id,
             ])
             ->assertOk();
@@ -114,7 +119,7 @@ class AdminControllerTest extends TestCase
         $memberId = $r->json('data.id');
         $this->assertDatabaseHas('group_member', [
             'member_id' => $memberId,
-            'group_id'  => $this->bacenta->id,
+            'group_id' => $this->bacenta->id,
         ]);
     }
 
@@ -125,7 +130,7 @@ class AdminControllerTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/v1/admin/members', [
                 'first_name' => 'Test',
-                'last_name'  => 'Person',
+                'last_name' => 'Person',
                 'bacenta_id' => $otherBacenta->id,
             ])
             ->assertStatus(403);
@@ -175,6 +180,27 @@ class AdminControllerTest extends TestCase
         $ids = collect($data)->pluck('id');
         $this->assertTrue($ids->contains($this->bacenta->id));
         $this->assertFalse($ids->contains($other->id));
+    }
+
+    public function test_list_bacentas_finds_custom_slug_bacenta_type(): void
+    {
+        // A tenant whose Bacenta type is named "bacenta" (like gochurch), not the
+        // default "cell-group". Bacentas are identified by tracks_attendance, so a
+        // custom-named type must still be listed. (Regression: the admin used to
+        // hardcode the "cell-group" slug and found zero on such tenants.)
+        $customType = GroupType::factory()->create([
+            'name' => 'Bacenta', 'slug' => 'bacenta', 'level' => 2, 'tracks_attendance' => true,
+        ]);
+        $custom = Group::factory()->create([
+            'name' => 'Custom Bacenta',
+            'group_type_id' => $customType->id,
+            'parent_id' => $this->constituency->id,
+        ]);
+
+        $ids = collect($this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/bacentas')->assertOk()->json('data'))->pluck('id');
+
+        $this->assertTrue($ids->contains($custom->id), 'custom-slug bacenta should be listed');
     }
 
     public function test_create_bacenta(): void
@@ -238,7 +264,7 @@ class AdminControllerTest extends TestCase
 
         $this->assertDatabaseMissing('group_member', [
             'member_id' => $member->id,
-            'group_id'  => $otherBacenta->id,
+            'group_id' => $otherBacenta->id,
         ]);
     }
 
@@ -255,7 +281,7 @@ class AdminControllerTest extends TestCase
 
         $this->assertDatabaseHas('group_member', [
             'member_id' => $member->id,
-            'group_id'  => $destination->id,
+            'group_id' => $destination->id,
         ]);
     }
 

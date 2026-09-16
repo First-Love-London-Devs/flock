@@ -56,16 +56,42 @@ class AdminController extends Controller
         return DomainScope::confine($root ? $root->allGroupIds() : collect());
     }
 
+    /**
+     * The group-type ids that ARE Bacentas on this tenant.
+     *
+     * Flock identifies a Bacenta by its group type *tracking attendance* — see
+     * AssignUnderstandingCampaignRequest ("it must be a bacenta (tracks_attendance)"),
+     * MemberResource, NewConverts, etc. — NOT by a fixed slug. The default seeder
+     * names that type "cell-group", but a tenant may name it "bacenta" (gochurch
+     * does). Sonta/ministry types also track attendance, so they are excluded here
+     * by name. This is why the admin section (which used to hardcode "cell-group")
+     * found zero Bacentas on tenants with custom type names.
+     *
+     * @return array<int, int>
+     */
+    protected function bacentaTypeIds(): array
+    {
+        return GroupType::where('tracks_attendance', true)->get()
+            ->reject(fn ($t) => preg_match('/sonta|ministry/i', (string) $t->slug))
+            ->pluck('id')->map(fn ($v) => (int) $v)->all();
+    }
+
+    /** The Sonta/ministry group-type ids (the attendance-tracking ones that aren't Bacentas). */
+    protected function sontaTypeIds(): array
+    {
+        return GroupType::where('tracks_attendance', true)->get()
+            ->filter(fn ($t) => preg_match('/sonta|ministry/i', (string) $t->slug))
+            ->pluck('id')->map(fn ($v) => (int) $v)->all();
+    }
+
     protected function scopedBacenta(Request $request, int $id): Group
     {
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
-
         abort_if(
             ! $this->scopedGroupIds($request)->contains($id),
             response()->json(['success' => false, 'message' => 'Bacenta not in scope'], 403),
         );
 
-        return Group::where('group_type_id', $cellGroupTypeId)->findOrFail($id);
+        return Group::whereIn('group_type_id', $this->bacentaTypeIds())->findOrFail($id);
     }
 
     protected function scopedMember(Request $request, int $id): Member
@@ -118,14 +144,14 @@ class AdminController extends Controller
 
     public function showMember(Request $request, int $id): JsonResponse
     {
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+        $bacentaTypeIds = $this->bacentaTypeIds();
         $member = $this->scopedMember($request, $id)->load('groups:id,name,group_type_id');
 
         $data = $member->toArray();
         $data['groups'] = $member->groups->map(fn ($g) => [
             'id' => $g->id,
             'name' => $g->name,
-            'is_bacenta' => (int) $g->group_type_id === (int) $cellGroupTypeId,
+            'is_bacenta' => in_array((int) $g->group_type_id, $bacentaTypeIds, true),
         ])->values()->all();
 
         return $this->ok($data);
@@ -215,11 +241,12 @@ class AdminController extends Controller
             );
         }
 
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+        $bacentaTypeIds = $this->bacentaTypeIds();
+        $sontaTypeIds = $this->sontaTypeIds();
 
-        // Detach all current cell-groups and attach the new one (if provided).
+        // Detach all current Bacentas and attach the new one (if provided).
         $currentBacentaIds = $member->groups()
-            ->where('group_type_id', $cellGroupTypeId)
+            ->whereIn('group_type_id', $bacentaTypeIds)
             ->pluck('groups.id')
             ->all();
         if ($currentBacentaIds) {
@@ -229,9 +256,9 @@ class AdminController extends Controller
             $member->groups()->attach($data['bacenta_id'], ['joined_at' => now(), 'is_primary' => true]);
         }
 
-        // Detach all current non-cell-groups and attach the new Sonta (if provided).
+        // Detach all current Sontas and attach the new Sonta (if provided).
         $currentSontaIds = $member->groups()
-            ->where('group_type_id', '!=', $cellGroupTypeId)
+            ->whereIn('group_type_id', $sontaTypeIds)
             ->pluck('groups.id')
             ->all();
         if ($currentSontaIds) {
@@ -266,11 +293,10 @@ class AdminController extends Controller
     {
         $adminGroupId = $this->adminGroupId($request);
         $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
         $search = $request->query('search');
 
         $query = Group::whereIn('id', $subtreeIds)
-            ->where('group_type_id', '!=', $cellGroupTypeId)
+            ->whereIn('group_type_id', $this->sontaTypeIds())
             ->where('is_active', true)
             ->withCount('members');
 
@@ -285,11 +311,10 @@ class AdminController extends Controller
     {
         $adminGroupId = $this->adminGroupId($request);
         $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
         $search = $request->query('search');
 
         $query = Group::whereIn('id', $subtreeIds)
-            ->where('group_type_id', $cellGroupTypeId)
+            ->whereIn('group_type_id', $this->bacentaTypeIds())
             ->where('is_active', true)
             ->withCount('members');
 
@@ -310,12 +335,13 @@ class AdminController extends Controller
         $data = $request->validate(['name' => 'required|string|max:150']);
 
         $parentId = $this->adminGroupId($request);
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
+        $bacentaTypeId = $this->bacentaTypeIds()[0] ?? null;
+        abort_if(! $bacentaTypeId, response()->json(['success' => false, 'message' => 'No Bacenta group type on this tenant'], 422));
 
         $bacenta = Group::create([
             'name' => $data['name'],
             'parent_id' => $parentId,
-            'group_type_id' => $cellGroupTypeId,
+            'group_type_id' => $bacentaTypeId,
             'is_active' => true,
         ]);
 
@@ -533,12 +559,11 @@ class AdminController extends Controller
     {
         $adminGroupId = $this->adminGroupId($request);
         $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
-        $cellGroupTypeId = GroupType::where('slug', 'cell-group')->value('id');
 
         [$weekStart, $weekEnd] = $this->currentWeekBounds();
 
         $bacentas = Group::whereIn('id', $subtreeIds)
-            ->where('group_type_id', $cellGroupTypeId)
+            ->whereIn('group_type_id', $this->bacentaTypeIds())
             ->where('is_active', true)
             ->with(['leader.member:id,first_name,last_name'])
             ->withCount('members')

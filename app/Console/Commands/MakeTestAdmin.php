@@ -71,7 +71,12 @@ class MakeTestAdmin extends Command
         $where = null;
 
         $tenant->run(function () use ($username, $groupOpt, $wholeChurch, $listOnly, $whereBacentas, $inspect, &$issued, &$rows, &$tree, &$where) {
-            $cellTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
+            // Bacentas are the attendance-tracking group types (default slug
+            // "cell-group", but a tenant may name it "bacenta"); Sonta/ministry
+            // types track attendance too, so exclude them by name.
+            $bacentaTypeIds = GroupType::where('tracks_attendance', true)->get()
+                ->reject(fn ($t) => preg_match('/sonta|ministry/i', (string) $t->slug))
+                ->pluck('id')->map(fn ($v) => (int) $v)->all();
 
             // Where do Bacentas actually hang? Every group that directly parents
             // at least one active Bacenta, with type + count.
@@ -81,7 +86,7 @@ class MakeTestAdmin extends Command
                 $byId = $groups->keyBy('id');
                 $counts = [];
                 foreach ($groups as $g) {
-                    if ((int) $g->group_type_id === $cellTypeId && $g->parent_id) {
+                    if (in_array((int) $g->group_type_id, $bacentaTypeIds, true) && $g->parent_id) {
                         $counts[$g->parent_id] = ($counts[$g->parent_id] ?? 0) + 1;
                     }
                 }
@@ -128,10 +133,10 @@ class MakeTestAdmin extends Command
                 $cellsActive = 0;
                 $cellsInactive = 0;
                 $descTotal = 0;
-                $walk = function ($g) use (&$walk, $kids, $cellTypeId, &$cellsActive, &$cellsInactive, &$descTotal) {
+                $walk = function ($g) use (&$walk, $kids, $bacentaTypeIds, &$cellsActive, &$cellsInactive, &$descTotal) {
                     foreach ($kids[$g->id] ?? [] as $c) {
                         $descTotal++;
-                        if ((int) $c->group_type_id === $cellTypeId) {
+                        if (in_array((int) $c->group_type_id, $bacentaTypeIds, true)) {
                             $c->is_active ? $cellsActive++ : $cellsInactive++;
                         }
                         $walk($c);
@@ -161,11 +166,11 @@ class MakeTestAdmin extends Command
                 $childrenBy[$g->parent_id][] = $g;
             }
             $memo = [];
-            $subtreeCells = function ($g) use (&$subtreeCells, $childrenBy, $cellTypeId, &$memo) {
+            $subtreeCells = function ($g) use (&$subtreeCells, $childrenBy, $bacentaTypeIds, &$memo) {
                 if (isset($memo[$g->id])) {
                     return $memo[$g->id];
                 }
-                $n = ((int) $g->group_type_id === $cellTypeId) ? 1 : 0;
+                $n = in_array((int) $g->group_type_id, $bacentaTypeIds, true) ? 1 : 0;
                 foreach ($childrenBy[$g->id] ?? [] as $child) {
                     $n += $subtreeCells($child);
                 }
