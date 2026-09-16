@@ -36,7 +36,8 @@ class MakeTestAdmin extends Command
         {--username=campadmin : the leader login username}
         {--group= : governorship to scope to — a group id or a name (default: the governorship with the most Bacentas)}
         {--whole-church : scope to the biggest group overall instead of one governorship}
-        {--list : just list the governorships (constituencies) with Bacenta counts, then exit}';
+        {--list : just list the governorships (constituencies) with Bacenta counts, then exit}
+        {--inspect= : print the full tree under this group (id or name), incl inactive, then exit}';
 
     protected $description = 'Create/refresh a leader with the admin role on a tenant for testing';
 
@@ -61,11 +62,65 @@ class MakeTestAdmin extends Command
         $groupOpt = $this->option('group');
         $wholeChurch = (bool) $this->option('whole-church');
         $listOnly = (bool) $this->option('list');
+        $inspect = $this->option('inspect');
         $issued = null;
         $rows = null;
+        $tree = null;
 
-        $tenant->run(function () use ($username, $groupOpt, $wholeChurch, $listOnly, &$issued, &$rows) {
+        $tenant->run(function () use ($username, $groupOpt, $wholeChurch, $listOnly, $inspect, &$issued, &$rows, &$tree) {
             $cellTypeId = (int) GroupType::where('slug', 'cell-group')->value('id');
+
+            // Inspect mode: walk a group's whole subtree, INCLUDING inactive groups,
+            // so we can see why a governorship shows 0 Bacentas.
+            if ($inspect !== null && $inspect !== '') {
+                $typeName = GroupType::pluck('slug', 'id')->all();
+                $everything = Group::get(['id', 'parent_id', 'group_type_id', 'name', 'is_active'])
+                    ->loadCount('members');
+                $target = is_numeric($inspect)
+                    ? $everything->firstWhere('id', (int) $inspect)
+                    : $everything->first(fn ($g) => stripos($g->name, $inspect) !== false);
+                if (! $target) {
+                    $tree = ['error' => "No group matching '{$inspect}'."];
+
+                    return;
+                }
+                $kids = [];
+                foreach ($everything as $g) {
+                    $kids[$g->parent_id][] = $g;
+                }
+                $direct = collect($kids[$target->id] ?? [])->map(fn ($g) => [
+                    'id' => $g->id,
+                    'name' => $g->name,
+                    'type' => $typeName[$g->group_type_id] ?? $g->group_type_id,
+                    'active' => $g->is_active ? 'yes' : 'NO',
+                    'members' => $g->members_count,
+                ])->all();
+                $cellsActive = 0;
+                $cellsInactive = 0;
+                $descTotal = 0;
+                $walk = function ($g) use (&$walk, $kids, $cellTypeId, &$cellsActive, &$cellsInactive, &$descTotal) {
+                    foreach ($kids[$g->id] ?? [] as $c) {
+                        $descTotal++;
+                        if ((int) $c->group_type_id === $cellTypeId) {
+                            $c->is_active ? $cellsActive++ : $cellsInactive++;
+                        }
+                        $walk($c);
+                    }
+                };
+                $walk($target);
+                $tree = [
+                    'name' => $target->name,
+                    'id' => $target->id,
+                    'type' => $typeName[$target->group_type_id] ?? $target->group_type_id,
+                    'active' => $target->is_active ? 'yes' : 'NO',
+                    'direct' => $direct,
+                    'descTotal' => $descTotal,
+                    'cellsActive' => $cellsActive,
+                    'cellsInactive' => $cellsInactive,
+                ];
+
+                return;
+            }
             // A "governorship" is a constituency (the governor role attaches to it).
             $constituencyTypeIds = GroupType::whereIn('slug', ['constituency', 'governor'])->pluck('id')->all();
 
@@ -181,6 +236,30 @@ class MakeTestAdmin extends Command
                 'bacentas' => $subtreeCells($group),
             ];
         });
+
+        if ($inspect !== null && $inspect !== '') {
+            if (! $tree) {
+                $this->error('Inspect produced no result.');
+
+                return self::FAILURE;
+            }
+            if (isset($tree['error'])) {
+                $this->error($tree['error']);
+
+                return self::FAILURE;
+            }
+            $this->newLine();
+            $this->info("{$tree['name']} (id={$tree['id']}, type={$tree['type']}, active={$tree['active']})");
+            if (empty($tree['direct'])) {
+                $this->line('  no child groups at all');
+            } else {
+                $this->table(['id', 'name', 'type', 'active', 'members'],
+                    array_map(fn ($d) => [$d['id'], $d['name'], $d['type'], $d['active'], $d['members']], $tree['direct']));
+            }
+            $this->line("  Subtree: {$tree['descTotal']} descendant groups · Bacentas active={$tree['cellsActive']}, inactive={$tree['cellsInactive']}");
+
+            return self::SUCCESS;
+        }
 
         if ($listOnly) {
             if (! $rows) {
