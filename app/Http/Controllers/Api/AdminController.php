@@ -211,9 +211,13 @@ class AdminController extends Controller
             'first_name' => 'sometimes|string|max:100',
             'last_name' => 'sometimes|string|max:100',
             'phone_number' => 'sometimes|nullable|string|max:30',
+            'email' => 'sometimes|nullable|email|max:255',
             'gender' => 'sometimes|nullable|string|in:male,female',
             'date_of_birth' => 'sometimes|nullable|date',
             'member_type' => 'sometimes|nullable|string|max:50',
+            'address' => 'sometimes|nullable|string|max:255',
+            'street_name' => 'sometimes|nullable|string|max:255',
+            'postal_code' => 'sometimes|nullable|string|max:30',
             'is_active' => 'sometimes|boolean',
         ]);
 
