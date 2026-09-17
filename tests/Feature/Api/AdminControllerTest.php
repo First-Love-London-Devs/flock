@@ -218,6 +218,31 @@ class AdminControllerTest extends TestCase
         $this->assertTrue($ids->contains($custom->id), 'custom-slug bacenta should be listed');
     }
 
+    public function test_saving_member_keeps_an_out_of_scope_sonta_without_error(): void
+    {
+        // A Sonta that lives OUTSIDE the admin's scope (Basontas hang off a stream,
+        // not the governorship). Re-saving a member who is in it must NOT 403.
+        $sontaType = GroupType::factory()->create([
+            'name' => 'Basonta', 'slug' => 'basonta', 'level' => 2, 'tracks_attendance' => true,
+        ]);
+        $sonta = Group::factory()->create([
+            'name' => 'Choir', 'group_type_id' => $sontaType->id,
+            'parent_id' => $this->makeConstituency('Elsewhere')->id,
+        ]);
+
+        $member = $this->makeMember($this->bacenta); // bacenta is in scope
+        $member->groups()->attach($sonta->id, ['joined_at' => now(), 'is_primary' => false]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/v1/admin/members/{$member->id}/groups", [
+                'bacenta_id' => $this->bacenta->id,
+                'sonta_id' => $sonta->id,
+            ])
+            ->assertOk();
+
+        $this->assertTrue($member->fresh()->groups->pluck('id')->contains($sonta->id));
+    }
+
     public function test_create_bacenta(): void
     {
         $r = $this->actingAs($this->admin, 'sanctum')

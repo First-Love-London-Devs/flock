@@ -242,46 +242,54 @@ class AdminController extends Controller
             'sonta_id' => 'nullable|integer|exists:groups,id',
         ]);
 
-        /* exists:groups,id only proves the group is real, not that it is
-           this admin's to move someone into. Without this an admin could
-           reassign a member into any group in the tenant by id, which is
-           the same hole as reading them. */
         $scopedIds = $this->scopedGroupIds($request);
-        foreach (['bacenta_id', 'sonta_id'] as $key) {
+
+        // Only touch a Bacenta/Sonta that is actually CHANGING. Re-saving a member
+        // whose existing Sonta lives outside the admin's scope (Basontas hang off a
+        // stream, not the governorship) must not fail — the scope guard applies only
+        // to a NEW group the admin is moving someone into, not to unchanged ones.
+        $this->reassignMemberGroup($member, $this->bacentaTypeIds(), $data['bacenta_id'] ?? null, $scopedIds, true);
+        $this->reassignMemberGroup($member, $this->sontaTypeIds(), $data['sonta_id'] ?? null, $scopedIds, false);
+
+        return $this->ok($member->fresh()->load('groups:id,name'));
+    }
+
+    /**
+     * Move a member's group of one kind (Bacenta or Sonta) to $newId, but only if
+     * it differs from what they already have. An unchanged assignment is left
+     * untouched — including one outside the admin's scope — so a plain profile
+     * save never trips the scope guard. A genuine change requires the new group to
+     * be in scope (exists:groups,id only proves it is real, not that it is the
+     * admin's to move someone into).
+     */
+    private function reassignMemberGroup(Member $member, array $typeIds, ?int $newId, Collection $scopedIds, bool $primary): void
+    {
+        if (empty($typeIds)) {
+            return;
+        }
+
+        $currentIds = $member->groups()->whereIn('group_type_id', $typeIds)
+            ->pluck('groups.id')->map(fn ($v) => (int) $v)->all();
+        $newId = $newId ? (int) $newId : null;
+
+        $unchanged = ($newId === null && $currentIds === []) || ($newId !== null && $currentIds === [$newId]);
+        if ($unchanged) {
+            return;
+        }
+
+        if ($newId !== null) {
             abort_if(
-                ! empty($data[$key]) && ! $scopedIds->contains((int) $data[$key]),
+                ! $scopedIds->contains($newId),
                 response()->json(['success' => false, 'message' => 'Group not in scope'], 403),
             );
         }
 
-        $bacentaTypeIds = $this->bacentaTypeIds();
-        $sontaTypeIds = $this->sontaTypeIds();
-
-        // Detach all current Bacentas and attach the new one (if provided).
-        $currentBacentaIds = $member->groups()
-            ->whereIn('group_type_id', $bacentaTypeIds)
-            ->pluck('groups.id')
-            ->all();
-        if ($currentBacentaIds) {
-            $member->groups()->detach($currentBacentaIds);
+        if ($currentIds) {
+            $member->groups()->detach($currentIds);
         }
-        if (! empty($data['bacenta_id'])) {
-            $member->groups()->attach($data['bacenta_id'], ['joined_at' => now(), 'is_primary' => true]);
+        if ($newId !== null) {
+            $member->groups()->attach($newId, ['joined_at' => now(), 'is_primary' => $primary]);
         }
-
-        // Detach all current Sontas and attach the new Sonta (if provided).
-        $currentSontaIds = $member->groups()
-            ->whereIn('group_type_id', $sontaTypeIds)
-            ->pluck('groups.id')
-            ->all();
-        if ($currentSontaIds) {
-            $member->groups()->detach($currentSontaIds);
-        }
-        if (! empty($data['sonta_id'])) {
-            $member->groups()->attach($data['sonta_id'], ['joined_at' => now(), 'is_primary' => false]);
-        }
-
-        return $this->ok($member->fresh()->load('groups:id,name'));
     }
 
     // ─── Bacentas ───────────────────────────────────────────────────────────
