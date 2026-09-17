@@ -93,6 +93,21 @@ class AdminControllerTest extends TestCase
         $this->assertFalse($ids->contains($outOfScope->id));
     }
 
+    public function test_missing_filter_shows_only_members_missing_that_field(): void
+    {
+        $withPostcode = $this->makeMember($this->bacenta);
+        $withPostcode->update(['postal_code' => 'ZH-8001']);
+        $withoutPostcode = $this->makeMember($this->bacenta);
+        $withoutPostcode->update(['postal_code' => null]);
+
+        $ids = collect($this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/members?missing=postal_code')
+            ->assertOk()->json('data.data'))->pluck('id');
+
+        $this->assertTrue($ids->contains($withoutPostcode->id), 'member missing postcode should show');
+        $this->assertFalse($ids->contains($withPostcode->id), 'member with postcode should be hidden');
+    }
+
     public function test_create_member_without_bacenta(): void
     {
         $r = $this->actingAs($this->admin, 'sanctum')

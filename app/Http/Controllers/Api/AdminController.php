@@ -139,6 +139,15 @@ class AdminController extends Controller
             );
         }
 
+        // "Missing data" filter: show only members whose chosen field is blank,
+        // so an admin can find and fill the gaps. Whitelisted so a caller can't
+        // filter on arbitrary columns.
+        $missing = $request->query('missing');
+        $missingFields = ['postal_code', 'phone_number', 'email', 'date_of_birth', 'gender', 'address'];
+        if ($missing && in_array($missing, $missingFields, true)) {
+            $query->where(fn ($q) => $q->whereNull($missing)->orWhere($missing, ''));
+        }
+
         return $this->ok($query->paginate($perPage));
     }
 
