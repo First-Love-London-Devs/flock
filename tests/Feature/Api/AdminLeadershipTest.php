@@ -22,11 +22,17 @@ class AdminLeadershipTest extends TestCase
     use BuildsGovernanceFixtures;
 
     private RoleDefinition $adminRole;
+
     private RoleDefinition $cellLeaderRole;
+
     private RoleDefinition $ministryLeaderRole;
+
     private RoleDefinition $superAdminRole;
+
     private Group $constituency;
+
     private Group $bacenta;
+
     private Leader $admin;
 
     protected function setUp(): void
@@ -317,5 +323,53 @@ class AdminLeadershipTest extends TestCase
         $rows = collect($res->json('data.bacentas'));
         $this->assertTrue((bool) $rows->firstWhere('id', $submitted->id)['sunday_submitted']);
         $this->assertFalse((bool) $rows->firstWhere('id', $this->bacenta->id)['sunday_submitted']);
+    }
+
+    public function test_a_super_admin_lists_bacentas_across_the_whole_tenant(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        $otherConstituency = $this->makeConstituency('Far Constituency');
+        $farBacenta = $this->makeCellGroup($otherConstituency, null, 'Far Bacenta');
+
+        $ids = collect(
+            $this->actingAs($superAdmin, 'sanctum')
+                ->getJson('/api/v1/admin/bacentas')
+                ->assertOk()
+                ->json('data')
+        )->pluck('id');
+
+        $this->assertTrue($ids->contains($this->bacenta->id));
+        $this->assertTrue($ids->contains($farBacenta->id), 'super admin should see Bacentas tenant-wide');
+
+        // A regular admin stays boxed to their own governorship.
+        $adminIds = collect(
+            $this->actingAs($this->admin, 'sanctum')
+                ->getJson('/api/v1/admin/bacentas')
+                ->assertOk()
+                ->json('data')
+        )->pluck('id');
+
+        $this->assertTrue($adminIds->contains($this->bacenta->id));
+        $this->assertFalse($adminIds->contains($farBacenta->id));
+    }
+
+    public function test_a_super_admin_sees_submissions_across_the_whole_tenant(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        $otherConstituency = $this->makeConstituency('Far Constituency');
+        $farBacenta = $this->makeCellGroup($otherConstituency, null, 'Far Bacenta');
+        $sunday = Carbon::now()->startOfWeek()->addDays(6);
+        $this->submitAttendance($farBacenta, $sunday, 30);
+
+        $rows = collect(
+            $this->actingAs($superAdmin, 'sanctum')
+                ->getJson('/api/v1/admin/submissions')
+                ->assertOk()
+                ->json('data.bacentas')
+        );
+
+        $far = $rows->firstWhere('id', $farBacenta->id);
+        $this->assertNotNull($far, 'super admin should see submissions tenant-wide');
+        $this->assertTrue((bool) $far['sunday_submitted']);
     }
 }

@@ -303,26 +303,13 @@ class AdminController extends Controller
 
     // ─── Bacentas ───────────────────────────────────────────────────────────
 
-    private function descendantGroupIds(int $parentId): array
-    {
-        $ids = [];
-        $queue = [$parentId];
-        while ($queue) {
-            $current = array_shift($queue);
-            $children = Group::where('parent_id', $current)->pluck('id')->all();
-            foreach ($children as $child) {
-                $ids[] = $child;
-                $queue[] = $child;
-            }
-        }
-
-        return $ids;
-    }
-
     public function listSontas(Request $request): JsonResponse
     {
-        $adminGroupId = $this->adminGroupId($request);
-        $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
+        // scopedGroupIds is the whole tenant for a super admin and the admin's
+        // own subtree otherwise, both domain-confined. Filtering by group type
+        // below means including the scope root (a governorship, never a Bacenta
+        // or Sonta) changes nothing for a regular admin.
+        $subtreeIds = $this->scopedGroupIds($request);
         $search = $request->query('search');
 
         $query = Group::whereIn('id', $subtreeIds)
@@ -339,8 +326,11 @@ class AdminController extends Controller
 
     public function listBacentas(Request $request): JsonResponse
     {
-        $adminGroupId = $this->adminGroupId($request);
-        $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
+        // scopedGroupIds is the whole tenant for a super admin and the admin's
+        // own subtree otherwise, both domain-confined. Filtering by group type
+        // below means including the scope root (a governorship, never a Bacenta
+        // or Sonta) changes nothing for a regular admin.
+        $subtreeIds = $this->scopedGroupIds($request);
         $search = $request->query('search');
 
         $query = Group::whereIn('id', $subtreeIds)
@@ -602,8 +592,11 @@ class AdminController extends Controller
      */
     public function submissions(Request $request): JsonResponse
     {
-        $adminGroupId = $this->adminGroupId($request);
-        $subtreeIds = DomainScope::confine(collect($this->descendantGroupIds($adminGroupId)));
+        // scopedGroupIds is the whole tenant for a super admin and the admin's
+        // own subtree otherwise, both domain-confined. Filtering by group type
+        // below means including the scope root (a governorship, never a Bacenta
+        // or Sonta) changes nothing for a regular admin.
+        $subtreeIds = $this->scopedGroupIds($request);
 
         [$weekStart, $weekEnd] = $this->currentWeekBounds();
 
