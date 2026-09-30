@@ -11,6 +11,7 @@ use App\Models\LeaderRole;
 use App\Models\Member;
 use App\Models\RoleDefinition;
 use App\Services\DomainScope;
+use App\Services\LeaderScopeService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,8 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    public function __construct(protected LeaderScopeService $scope) {}
+
     // ─── Scope helpers ──────────────────────────────────────────────────────
 
     protected function adminGroupId(Request $request): int
@@ -51,6 +54,12 @@ class AdminController extends Controller
      */
     protected function scopedGroupIds(Request $request): Collection
     {
+        // A super admin acts on the whole tenant (domain-confined), so they
+        // reach these endpoints without an admin-role-with-group of their own.
+        if ($this->scope->isSuperAdmin()) {
+            return $this->scope->getAccessibleGroupIds();
+        }
+
         $root = Group::find($this->adminGroupId($request));
 
         return DomainScope::confine($root ? $root->allGroupIds() : collect());
@@ -401,7 +410,14 @@ class AdminController extends Controller
      */
     protected function grantableRoleSlugs(): array
     {
-        return ['cell-leader', 'ministry-leader'];
+        $slugs = ['cell-leader', 'ministry-leader'];
+
+        // Only a super admin can appoint (or remove) another super admin.
+        if ($this->scope->isSuperAdmin()) {
+            $slugs[] = 'super-admin';
+        }
+
+        return $slugs;
     }
 
     /** The grantable roles as pickable rows for the app. */
@@ -459,16 +475,24 @@ class AdminController extends Controller
     {
         $member = $this->scopedMember($request, $id);
 
+        // The tenant-wide super-admin role carries no group; every other role
+        // is pinned to one of the admin's groups.
+        $isTenantWide = $request->input('role_slug') === 'super-admin';
+
         $validated = $request->validate([
             'role_slug' => ['required', Rule::in($this->grantableRoleSlugs())],
-            'group_id' => 'required|integer|exists:groups,id',
+            'group_id' => [Rule::requiredIf(! $isTenantWide), 'nullable', 'integer', 'exists:groups,id'],
         ]);
 
+        $groupId = $isTenantWide ? null : (int) $validated['group_id'];
+
         // exists:groups,id proves the group is real, not that it is this admin's.
-        abort_if(
-            ! $this->scopedGroupIds($request)->contains((int) $validated['group_id']),
-            response()->json(['success' => false, 'message' => 'Group not in scope'], 403),
-        );
+        if (! $isTenantWide) {
+            abort_if(
+                ! $this->scopedGroupIds($request)->contains($groupId),
+                response()->json(['success' => false, 'message' => 'Group not in scope'], 403),
+            );
+        }
 
         $roleDef = RoleDefinition::where('slug', $validated['role_slug'])
             ->where('is_active', true)
@@ -493,7 +517,7 @@ class AdminController extends Controller
             [
                 'leader_id' => $leader->id,
                 'role_definition_id' => $roleDef->id,
-                'group_id' => (int) $validated['group_id'],
+                'group_id' => $groupId,
             ],
             [
                 'assigned_at' => now(),

@@ -152,7 +152,7 @@ Route::middleware([
             Route::get('governors/{govId}/attendance', [BishopController::class, 'governorAttendance'])->whereNumber('govId');
         });
 
-        Route::prefix('admin')->middleware([CheckRole::class.':admin'])->group(function () {
+        Route::prefix('admin')->middleware([CheckRole::class.':admin,super-admin'])->group(function () {
             Route::get('members', [AdminController::class, 'listMembers']);
             Route::get('members/{id}', [AdminController::class, 'showMember'])->whereNumber('id');
             Route::post('members', [AdminController::class, 'createMember']);

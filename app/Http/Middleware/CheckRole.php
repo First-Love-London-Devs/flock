@@ -13,10 +13,10 @@ class CheckRole
     {
         $leader = $request->user();
 
-        if (!$leader instanceof Leader || !$leader->hasAnyRole($roles)) {
+        if (! $leader instanceof Leader || ! $leader->hasAnyRole($roles)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Required role: ' . implode(' or ', $roles),
+                'message' => 'Unauthorized. Required role: '.implode(' or ', $roles),
             ], 403);
         }
 

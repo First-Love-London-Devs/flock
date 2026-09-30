@@ -24,6 +24,7 @@ class AdminLeadershipTest extends TestCase
     private RoleDefinition $adminRole;
     private RoleDefinition $cellLeaderRole;
     private RoleDefinition $ministryLeaderRole;
+    private RoleDefinition $superAdminRole;
     private Group $constituency;
     private Group $bacenta;
     private Leader $admin;
@@ -48,6 +49,9 @@ class AdminLeadershipTest extends TestCase
             'name' => 'Ministry Leader', 'slug' => 'ministry-leader', 'permission_level' => 40,
             'applies_to_group_type_id' => null,
         ]);
+        $this->superAdminRole = RoleDefinition::factory()->create([
+            'name' => 'Super Admin', 'slug' => 'super-admin', 'permission_level' => 100, 'applies_to_group_type_id' => null,
+        ]);
 
         $this->constituency = $this->makeConstituency('Test Constituency');
         $this->bacenta = $this->makeCellGroup($this->constituency, null, 'Test Bacenta');
@@ -61,6 +65,20 @@ class AdminLeadershipTest extends TestCase
             'leader_id' => $leader->id,
             'role_definition_id' => $this->adminRole->id,
             'group_id' => $group->id,
+            'is_active' => true,
+        ]);
+
+        return $leader;
+    }
+
+    /** A tenant-wide super admin: the super-admin role attached to no group. */
+    private function makeSuperAdmin(): Leader
+    {
+        $leader = Leader::factory()->create();
+        LeaderRole::factory()->create([
+            'leader_id' => $leader->id,
+            'role_definition_id' => $this->superAdminRole->id,
+            'group_id' => null,
             'is_active' => true,
         ]);
 
@@ -157,6 +175,69 @@ class AdminLeadershipTest extends TestCase
                 'role_slug' => 'cell-leader', 'group_id' => $otherBacenta->id,
             ])
             ->assertStatus(403);
+    }
+
+    // ─── Super admin ──────────────────────────────────────────────────────────
+
+    public function test_a_super_admin_can_appoint_another_super_admin_with_no_group(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        $member = $this->makeMember($this->bacenta);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson("/api/v1/admin/members/{$member->id}/leadership", [
+                'role_slug' => 'super-admin',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.role.role_slug', 'super-admin')
+            ->assertJsonPath('data.role.group_id', null);
+
+        $leader = Leader::where('member_id', $member->id)->first();
+        $this->assertDatabaseHas('leader_roles', [
+            'leader_id' => $leader->id,
+            'role_definition_id' => $this->superAdminRole->id,
+            'group_id' => null,
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_a_regular_admin_cannot_appoint_a_super_admin(): void
+    {
+        $member = $this->makeMember($this->bacenta);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/v1/admin/members/{$member->id}/leadership", [
+                'role_slug' => 'super-admin',
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_a_super_admin_sees_super_admin_in_the_grantable_set(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        $member = $this->makeMember($this->bacenta);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson("/api/v1/admin/members/{$member->id}/leadership")
+            ->assertOk()
+            ->assertJsonCount(3, 'data.grantable_roles');
+    }
+
+    public function test_a_super_admin_can_remove_a_super_admin_role(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        $member = $this->makeMember($this->bacenta);
+        $assign = $this->actingAs($superAdmin, 'sanctum')
+            ->postJson("/api/v1/admin/members/{$member->id}/leadership", [
+                'role_slug' => 'super-admin',
+            ])->assertOk();
+        $roleId = $assign->json('data.role.id');
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->deleteJson("/api/v1/admin/members/{$member->id}/leadership/{$roleId}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('leader_roles', ['id' => $roleId]);
     }
 
     // ─── Reading ──────────────────────────────────────────────────────────────
