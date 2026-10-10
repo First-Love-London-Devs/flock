@@ -17,10 +17,24 @@
         .uc-form button { margin-top: 1.5rem; width: 100%; padding: 0.8rem; border: 0; border-radius: 0.5rem;
             background: #4f46e5; color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; }
         .uc-error { color: #dc2626; font-size: 0.85rem; margin-top: 0.2rem; }
+        .uc-disclaimer { margin: 0.75rem 0 0; padding: 0.7rem 0.9rem; background: #f9fafb;
+            border: 1px solid #e5e7eb; border-radius: 0.5rem; color: #6b7280; font-size: 0.85rem; line-height: 1.5; }
     </style>
 
     <h1 class="page-title">Welcome / Welkom</h1>
     <p class="page-subtitle">{{ $stream->name }} — we'd love to get to know you. / {{ $stream->name }} — we willen je graag leren kennen. Vul hieronder je gegevens in.</p>
+
+    {{-- Go Church (Belgium) only: data-use disclaimer the client asked for. --}}
+    @php
+        $t = tenant();
+        $isGoChurch = $t && ($t->getTenantKey() === 'go-church'
+            || \Illuminate\Support\Str::contains($t->church_name ?? '', 'Go Church'));
+    @endphp
+    @if ($isGoChurch)
+        <p class="uc-disclaimer">
+            <strong>Disclaimer:</strong> Je bent niet verplicht om deze formulier in te vullen. Je mag ten allen tijden aan Go Church vragen om uw gegevens te wissen indien u dat wilt.
+        </p>
+    @endif
 
     @if (session('success'))
         <div class="card" style="border-color:#16a34a;background:#f0fdf4;">
