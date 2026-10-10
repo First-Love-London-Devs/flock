@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\UnderstandingCampaign;
+use App\Services\DomainScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -62,9 +63,19 @@ class WelcomeFormController extends Controller
      */
     private function streams()
     {
-        return Group::whereHas('groupType', fn ($q) => $q->where('slug', 'stream'))
+        $streams = Group::whereHas('groupType', fn ($q) => $q->where('slug', 'stream'))
             ->orderBy('name')
             ->get();
+
+        // Respect the country domain the request came in through: on a country
+        // address (e.g. the Belgium Go Church domain) show only that country's
+        // streams, not every country sharing the tenant. DomainScope::groupIds()
+        // is null on the group-wide address, so there it stays the full list.
+        $allowed = DomainScope::groupIds();
+
+        return $allowed === null
+            ? $streams
+            : $streams->filter(fn (Group $g) => $allowed->contains($g->id))->values();
     }
 
     /**
