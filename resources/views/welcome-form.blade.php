@@ -24,13 +24,10 @@
     <h1 class="page-title">Welcome / Welkom</h1>
     <p class="page-subtitle">{{ $stream->name }} — we'd love to get to know you. / {{ $stream->name }} — we willen je graag leren kennen. Vul hieronder je gegevens in.</p>
 
-    {{-- Go Church (Belgium) only: data-use disclaimer the client asked for. --}}
-    @php
-        $t = tenant();
-        $isGoChurch = $t && ($t->getTenantKey() === 'go-church'
-            || \Illuminate\Support\Str::contains($t->church_name ?? '', 'Go Church'));
-    @endphp
-    @if ($isGoChurch)
+    {{-- Belgium only: data-use disclaimer the client asked for. Scoped by the
+         request's country domain (scope_group_name "Belgium"), so the Swiss and
+         group-wide Go Church forms do not show it. --}}
+    @if (\App\Services\DomainScope::countryName() === 'Belgium')
         <p class="uc-disclaimer">
             <strong>Disclaimer:</strong> You are not obliged to fill in this form. You may ask Go Church at any time to erase your data if you wish. / Je bent niet verplicht om deze formulier in te vullen. Je mag ten allen tijden aan Go Church vragen om uw gegevens te wissen indien u dat wilt.
         </p>

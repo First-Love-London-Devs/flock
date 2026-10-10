@@ -114,6 +114,35 @@ class DomainScope
     }
 
     /**
+     * The name of the country group the current request is confined to
+     * (e.g. "Belgium"), or null if the domain narrows nothing.
+     *
+     * Same domain lookup as groupIds(), but returns the scope name itself so a
+     * view can show country-specific content, like Belgium's data-use
+     * disclaimer, without hard-coding a subdomain. A request outside a country
+     * domain (the group-wide address, console, tests) returns null.
+     */
+    public static function countryName(): ?string
+    {
+        $host = Request::getHost();
+        if (! $host) {
+            return null;
+        }
+
+        try {
+            if (! Schema::connection(self::centralConnection())->hasTable('domains')) {
+                return null;
+            }
+
+            $domain = Domain::where('domain', $host)->first();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $domain?->scope_group_name ?: null;
+    }
+
+    /**
      * Narrow a set of group ids to the country the request came in through.
      *
      * An intersection, never a substitution: coming in through belgium.
