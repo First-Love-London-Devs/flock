@@ -32,7 +32,7 @@
     @endphp
     @if ($isGoChurch)
         <p class="uc-disclaimer">
-            <strong>Disclaimer:</strong> Je bent niet verplicht om deze formulier in te vullen. Je mag ten allen tijden aan Go Church vragen om uw gegevens te wissen indien u dat wilt.
+            <strong>Disclaimer:</strong> You are not obliged to fill in this form. You may ask Go Church at any time to erase your data if you wish. / Je bent niet verplicht om deze formulier in te vullen. Je mag ten allen tijden aan Go Church vragen om uw gegevens te wissen indien u dat wilt.
         </p>
     @endif
 
