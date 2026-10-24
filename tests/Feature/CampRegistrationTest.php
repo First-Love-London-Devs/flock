@@ -4,29 +4,18 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\CampRegistrationResource;
 use App\Models\CampRegistration;
-use App\Models\Group;
-use App\Models\GroupType;
 use App\Models\Setting;
-use App\Models\User;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 use Tests\TestCase;
 
 /**
- * Public, no-payment camp RSVP + its scoped admin list. Mirrors the Understanding
- * Campaign welcome form. Tenancy middleware is disabled so the tenant routes run
- * against the test connection, exactly as the API feature tests do.
+ * Public, no-payment camp RSVP + its admin list. Country and denomination are
+ * fixed short lists (not tenant Groups). Tenancy middleware is disabled so the
+ * tenant routes run against the test connection, as the API feature tests do.
  */
 class CampRegistrationTest extends TestCase
 {
-    private Group $switzerland;
-
-    private Group $basel;
-
-    private Group $belgium;
-
-    private Group $brussels;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,16 +24,8 @@ class CampRegistrationTest extends TestCase
             PreventAccessFromCentralDomains::class,
         ]);
 
-        $countryType = GroupType::create(['name' => 'Country', 'slug' => 'country', 'level' => 0, 'tracks_attendance' => false, 'is_active' => true]);
-        $streamType = GroupType::create(['name' => 'Stream', 'slug' => 'stream', 'level' => 2, 'tracks_attendance' => false, 'is_active' => true]);
-
-        $this->switzerland = Group::create(['name' => 'Switzerland', 'group_type_id' => $countryType->id, 'is_active' => true]);
-        $this->basel = Group::create(['name' => 'Basel', 'group_type_id' => $streamType->id, 'parent_id' => $this->switzerland->id, 'is_active' => true]);
-        $this->belgium = Group::create(['name' => 'Belgium', 'group_type_id' => $countryType->id, 'is_active' => true]);
-        $this->brussels = Group::create(['name' => 'Brussels', 'group_type_id' => $streamType->id, 'parent_id' => $this->belgium->id, 'is_active' => true]);
-
         // The feature is off by default on every tenant; turn it on for the
-        // public-facing tests (the eurozone tenant will carry this setting).
+        // public-facing tests (the go-church tenant will carry this setting).
         Setting::set('camp_enabled', true, 'boolean');
     }
 
@@ -54,9 +35,8 @@ class CampRegistrationTest extends TestCase
             'full_name' => 'Ada Lovelace',
             'phone_number' => '0791234567',
             'email' => 'ada@example.test',
-            'country_group_id' => $this->switzerland->id,
-            'church_group_id' => $this->basel->id,
-            'attending_dates' => ['2026-11-16', '2026-11-17'],
+            'country' => 'Switzerland',
+            'denomination' => 'First Love',
             'needs_accommodation' => '1',
             'bringing_children' => '0',
             'notes' => 'Vegetarian',
@@ -83,7 +63,9 @@ class CampRegistrationTest extends TestCase
     public function test_landing_and_form_render(): void
     {
         $this->get('/camp')->assertOk()->assertSee('Living Waters & First Love Camp');
-        $this->get('/camp/register')->assertOk()->assertSee('Switzerland')->assertSee('Basel');
+        $this->get('/camp/register')->assertOk()
+            ->assertSee('Germany')->assertSee('Switzerland')
+            ->assertSee('Denomination')->assertSee('First Love')->assertSee('Living Waters');
     }
 
     public function test_camp_domain_setting_restricts_the_public_pages_to_one_host(): void
@@ -112,34 +94,27 @@ class CampRegistrationTest extends TestCase
 
         $this->assertDatabaseHas('camp_registrations', [
             'full_name' => 'Ada Lovelace',
-            'church_group_id' => $this->basel->id,
-            'country_group_id' => $this->switzerland->id,
+            'country' => 'Switzerland',
+            'denomination' => 'First Love',
             'needs_accommodation' => 1,
             'bringing_children' => 0,
         ]);
-
-        $row = CampRegistration::first();
-        $this->assertSame(['2026-11-16', '2026-11-17'], $row->attending_dates);
     }
 
-    public function test_church_must_belong_to_the_selected_country(): void
+    public function test_country_must_be_one_of_the_fixed_options(): void
     {
-        // Basel is in Switzerland, but the form claims Belgium.
-        $this->post('/camp/register', $this->validPayload(['country_group_id' => $this->belgium->id]))
-            ->assertStatus(422);
+        $this->from('/camp/register')
+            ->post('/camp/register', $this->validPayload(['country' => 'Narnia']))
+            ->assertSessionHasErrors('country');
 
         $this->assertDatabaseCount('camp_registrations', 0);
     }
 
-    public function test_attending_dates_are_required_and_validated(): void
+    public function test_denomination_must_be_one_of_the_fixed_options(): void
     {
         $this->from('/camp/register')
-            ->post('/camp/register', $this->validPayload(['attending_dates' => []]))
-            ->assertSessionHasErrors('attending_dates');
-
-        $this->from('/camp/register')
-            ->post('/camp/register', $this->validPayload(['attending_dates' => ['2026-12-25']]))
-            ->assertSessionHasErrors('attending_dates.0');
+            ->post('/camp/register', $this->validPayload(['denomination' => 'Something Else']))
+            ->assertSessionHasErrors('denomination');
 
         $this->assertDatabaseCount('camp_registrations', 0);
     }
@@ -163,19 +138,11 @@ class CampRegistrationTest extends TestCase
         $this->get('/camp/register')->assertOk()->assertSee('Registration closed');
     }
 
-    public function test_admin_list_is_scoped_to_the_admins_churches(): void
+    public function test_admin_resource_lists_all_registrations(): void
     {
-        $baselReg = CampRegistration::create(['full_name' => 'Swiss', 'phone_number' => '1', 'church_group_id' => $this->basel->id, 'country_group_id' => $this->switzerland->id]);
-        $brusselsReg = CampRegistration::create(['full_name' => 'Belgian', 'phone_number' => '2', 'church_group_id' => $this->brussels->id, 'country_group_id' => $this->belgium->id]);
+        CampRegistration::create(['full_name' => 'Swiss', 'phone_number' => '1', 'country' => 'Switzerland', 'denomination' => 'First Love']);
+        CampRegistration::create(['full_name' => 'German', 'phone_number' => '2', 'country' => 'Germany', 'denomination' => 'Living Waters']);
 
-        // A Switzerland-scoped admin sees only the Basel registration.
-        $this->actingAs(User::create(['name' => 'CH Admin', 'email' => 'ch@example.test', 'password' => 'password', 'scope_group_id' => $this->switzerland->id]));
-        $visible = CampRegistrationResource::getEloquentQuery()->pluck('id');
-        $this->assertTrue($visible->contains($baselReg->id));
-        $this->assertFalse($visible->contains($brusselsReg->id));
-
-        // The group-wide admin (no scope) sees both.
-        $this->actingAs(User::create(['name' => 'Wide', 'email' => 'wide@example.test', 'password' => 'password', 'scope_group_id' => null]));
         $this->assertSame(2, CampRegistrationResource::getEloquentQuery()->count());
     }
 }

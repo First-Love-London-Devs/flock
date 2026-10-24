@@ -13,9 +13,8 @@
         .camp-form textarea { min-height: 4.5rem; resize: vertical; }
         .camp-form fieldset { border: 1px solid #e5e7eb; border-radius: 0.5rem; margin: 1rem 0; padding: 0.75rem 1rem; }
         .camp-form legend { font-weight: 600; color: #374151; font-size: 0.95rem; padding: 0 0.4rem; }
-        .camp-form .choices label, .camp-form .days label { display: inline-flex; align-items: center; gap: 0.4rem;
+        .camp-form .choices label { display: inline-flex; align-items: center; gap: 0.4rem;
             margin: 0.2rem 1.25rem 0.2rem 0; font-weight: 400; }
-        .camp-form .days label { display: flex; margin: 0.15rem 0; }
         .camp-form .optional { color: #9ca3af; font-weight: 400; }
         .camp-form button { margin-top: 1.5rem; width: 100%; padding: 0.85rem; border: 0; border-radius: 0.5rem;
             background: #C8102E; color: #fff; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
@@ -26,11 +25,6 @@
 @endsection
 
 @section('content')
-    @php
-        $chosenDates = old('attending_dates', $dates);
-        $fmt = fn ($d) => \Illuminate\Support\Carbon::parse($d)->format('D j M');
-    @endphp
-
     <h1 class="page-title">Register for camp</h1>
     <p class="page-subtitle">{{ $camp['name'] }} · {{ \Illuminate\Support\Carbon::parse($camp['start_date'])->format('j') }}–{{ \Illuminate\Support\Carbon::parse($camp['end_date'])->format('j F') }} · {{ $camp['venue'] }}, Basel</p>
 
@@ -61,32 +55,23 @@
             <input id="email" type="email" name="email" value="{{ old('email') }}">
             @error('email') <div class="camp-error">{{ $message }}</div> @enderror
 
-            <label for="country_group_id">Country</label>
-            <select id="country_group_id" name="country_group_id" required>
+            <label for="country">Country</label>
+            <select id="country" name="country" required>
                 <option value="">Select your country</option>
                 @foreach ($countries as $c)
-                    <option value="{{ $c['id'] }}" @selected((string) old('country_group_id') === (string) $c['id'])>{{ $c['name'] }}</option>
+                    <option value="{{ $c }}" @selected(old('country') === $c)>{{ $c }}</option>
                 @endforeach
             </select>
-            @error('country_group_id') <div class="camp-error">{{ $message }}</div> @enderror
+            @error('country') <div class="camp-error">{{ $message }}</div> @enderror
 
-            <label for="church_group_id">Church</label>
-            <select id="church_group_id" name="church_group_id" required>
-                <option value="">Select your church</option>
-                @foreach ($churches as $ch)
-                    <option value="{{ $ch['id'] }}" data-country="{{ $ch['country_id'] }}"
-                        @selected((string) old('church_group_id') === (string) $ch['id'])>{{ $ch['name'] }}</option>
+            <label for="denomination">Denomination</label>
+            <select id="denomination" name="denomination" required>
+                <option value="">Select your denomination</option>
+                @foreach ($denominations as $d)
+                    <option value="{{ $d }}" @selected(old('denomination') === $d)>{{ $d }}</option>
                 @endforeach
             </select>
-            @error('church_group_id') <div class="camp-error">{{ $message }}</div> @enderror
-
-            <fieldset class="days">
-                <legend>Which days will you attend?</legend>
-                @foreach ($dates as $d)
-                    <label><input type="checkbox" name="attending_dates[]" value="{{ $d }}" @checked(in_array($d, $chosenDates))> {{ $fmt($d) }}</label>
-                @endforeach
-                @error('attending_dates') <div class="camp-error">{{ $message }}</div> @enderror
-            </fieldset>
+            @error('denomination') <div class="camp-error">{{ $message }}</div> @enderror
 
             <label for="travelling_from">Travelling from <span class="optional">(city / country, optional)</span></label>
             <input id="travelling_from" type="text" name="travelling_from" value="{{ old('travelling_from') }}">
@@ -121,31 +106,13 @@
 
         <script>
             (function () {
-                var country = document.getElementById('country_group_id');
-                var church = document.getElementById('church_group_id');
-                var options = Array.prototype.slice.call(church.querySelectorAll('option[data-country]'));
-
-                function filterChurches() {
-                    var c = country.value;
-                    options.forEach(function (opt) {
-                        var match = !c || opt.getAttribute('data-country') === c;
-                        opt.hidden = !match;
-                        opt.disabled = !match;
-                    });
-                    var selected = church.options[church.selectedIndex];
-                    if (selected && selected.disabled) { church.value = ''; }
-                }
-
                 var bringing = document.querySelectorAll('input[name="bringing_children"]');
                 var count = document.getElementById('children_count');
                 function toggleCount() {
                     var yes = document.querySelector('input[name="bringing_children"]:checked');
                     count.className = (yes && yes.value === '1') ? '' : 'camp-hide';
                 }
-
-                country.addEventListener('change', filterChurches);
                 bringing.forEach(function (r) { r.addEventListener('change', toggleCount); });
-                filterChurches();
                 toggleCount();
             })();
         </script>
