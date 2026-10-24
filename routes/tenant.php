@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\PushNotificationController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UnderstandingCampaignController;
 use App\Http\Controllers\Web\AttendanceCounterController;
+use App\Http\Controllers\Web\CampRegistrationController;
 use App\Http\Controllers\Web\WelcomeFormController;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\InitializeLeaderScope;
@@ -66,6 +67,15 @@ Route::middleware([
     Route::post('/attendance-counter/{stream}/counts', [AttendanceCounterController::class, 'counts'])
         ->middleware('throttle:60,1')
         ->name('attendance-counter.counts');
+
+    // Public camp registration (Living Waters & First Love Camp), no login.
+    // A real registrant fills this once; the throttle is generous for that and
+    // useless to anyone scripting it.
+    Route::get('/camp', [CampRegistrationController::class, 'landing'])->name('camp.landing');
+    Route::get('/camp/register', [CampRegistrationController::class, 'register'])->name('camp.register');
+    Route::post('/camp/register', [CampRegistrationController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('camp.store');
 });
 
 Route::middleware([
