@@ -86,6 +86,23 @@ class CampRegistrationTest extends TestCase
         $this->get('/camp/register')->assertOk()->assertSee('Switzerland')->assertSee('Basel');
     }
 
+    public function test_camp_domain_setting_restricts_the_public_pages_to_one_host(): void
+    {
+        // The go-church tenant answers on two domains; the camp is a Eurozone
+        // event, so it must only appear on the Eurozone host.
+        Setting::set('camp_domain', 'fl-eurozone.church-stack.com');
+
+        // The tenant's other domain: the whole feature is hidden.
+        $this->get('http://gochurch.church-stack.com/camp')->assertNotFound();
+        $this->get('http://gochurch.church-stack.com/camp/register')->assertNotFound();
+        $this->post('http://gochurch.church-stack.com/camp/register', $this->validPayload())->assertNotFound();
+        $this->assertDatabaseCount('camp_registrations', 0);
+
+        // The camp host: served as normal.
+        $this->get('http://fl-eurozone.church-stack.com/camp')->assertOk()->assertSee('Living Waters & First Love Camp');
+        $this->get('http://fl-eurozone.church-stack.com/camp/register')->assertOk();
+    }
+
     public function test_valid_registration_is_stored(): void
     {
         $this->from('/camp/register')

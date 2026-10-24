@@ -32,6 +32,16 @@ class CampRegistrationController extends Controller
     private const CLOSED_KEY = 'camp_registrations_closed';
 
     /**
+     * Optional host restriction. A tenant can be served on several domains
+     * (the go-church tenant answers on both gochurch.church-stack.com and the
+     * Eurozone's fl-eurozone.church-stack.com). The camp is a Eurozone event,
+     * so when this setting holds a host the public pages serve ONLY on that
+     * host and 404 on the tenant's other domains. Blank = serve on every
+     * domain of the tenant.
+     */
+    private const DOMAIN_KEY = 'camp_domain';
+
+    /**
      * Fixed camp facts. Kept here (not a per-tenant setting) because this is a
      * one-off event; move to config/Settings if it becomes recurring.
      */
@@ -62,10 +72,17 @@ class CampRegistrationController extends Controller
         return $dates;
     }
 
-    /** 404 the whole feature on any tenant that hasn't switched it on. */
+    /** 404 the whole feature on any tenant that hasn't switched it on, and
+     *  (when a camp_domain is set) on any domain of that tenant other than the
+     *  camp's. Keeps the feature invisible everywhere it isn't wanted. */
     private function ensureEnabled(): void
     {
         abort_unless((bool) Setting::get(self::ENABLED_KEY, false), 404);
+
+        $host = Setting::get(self::DOMAIN_KEY);
+        if (filled($host)) {
+            abort_unless(request()->getHost() === $host, 404);
+        }
     }
 
     private function registrationsClosed(): bool
