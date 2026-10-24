@@ -80,8 +80,11 @@ Route::middleware([
     Route::middleware(['auth:sanctum', InitializeLeaderScope::class])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        // Group Types
-        Route::apiResource('group-types', GroupTypeController::class);
+        // Group Types — reads for any authenticated leader; writes admin-only.
+        Route::apiResource('group-types', GroupTypeController::class)->only(['index', 'show']);
+        Route::middleware([CheckRole::class.':admin,super-admin'])->group(function () {
+            Route::apiResource('group-types', GroupTypeController::class)->only(['store', 'update', 'destroy']);
+        });
 
         // Groups
         Route::get('/groups/{id}/children', [GroupController::class, 'children']);
@@ -99,10 +102,16 @@ Route::middleware([
         // Non-Members
         Route::apiResource('non-members', NonMemberController::class);
 
-        // Leaders
-        Route::post('/leaders/{id}/assign-role', [LeaderController::class, 'assignRole']);
-        Route::delete('/leaders/{id}/remove-role/{roleId}', [LeaderController::class, 'removeRole']);
-        Route::apiResource('leaders', LeaderController::class);
+        // Leaders — index/show for any authenticated leader (scoped reads the
+        // app uses). Creating a leader, changing credentials, and granting or
+        // revoking roles are admin-only: left ungated, any leader token could
+        // self-promote to super-admin or reset another leader's password.
+        Route::apiResource('leaders', LeaderController::class)->only(['index', 'show']);
+        Route::middleware([CheckRole::class.':admin,super-admin'])->group(function () {
+            Route::post('/leaders/{id}/assign-role', [LeaderController::class, 'assignRole']);
+            Route::delete('/leaders/{id}/remove-role/{roleId}', [LeaderController::class, 'removeRole']);
+            Route::apiResource('leaders', LeaderController::class)->only(['store', 'update', 'destroy']);
+        });
 
         // Attendance
         Route::post('/attendance/submit', [AttendanceController::class, 'submit']);
@@ -117,17 +126,22 @@ Route::middleware([
         Route::get('/dashboard/attendance-trends', [DashboardController::class, 'attendanceTrends']);
         Route::get('/dashboard/defaulters', [DashboardController::class, 'defaulters']);
 
-        // Settings
+        // Settings — read for any leader; writing a setting is admin-only
+        // (settings feed the admin brand/theme and arbitrary keys).
         Route::get('/settings', [SettingController::class, 'index']);
-        Route::put('/settings/{key}', [SettingController::class, 'update']);
+        Route::put('/settings/{key}', [SettingController::class, 'update'])
+            ->middleware(CheckRole::class.':admin,super-admin');
 
         // Birthdays
         Route::get('/birthdays/upcoming', [BirthdayController::class, 'upcoming']);
 
-        // Push Notifications
+        // Push Notifications — a leader registers/removes their own device
+        // token; broadcasting a notification is admin-only (otherwise any
+        // leader could push to the whole leadership).
         Route::post('/push-token', [PushNotificationController::class, 'storeToken']);
         Route::delete('/push-token', [PushNotificationController::class, 'removeToken']);
-        Route::post('/notifications/send', [PushNotificationController::class, 'send']);
+        Route::post('/notifications/send', [PushNotificationController::class, 'send'])
+            ->middleware(CheckRole::class.':admin,super-admin');
 
         Route::prefix('governor')->middleware([CheckRole::class.':governor'])->group(function () {
             Route::get('dashboard', [GovernorController::class, 'dashboard']);

@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Leader;
 use App\Models\LeaderRole;
+use App\Services\LeaderScopeService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LeaderController extends Controller
 {
+    public function __construct(
+        protected LeaderScopeService $scope,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -136,13 +141,24 @@ class LeaderController extends Controller
 
     public function assignRole(Request $request, int $id): JsonResponse
     {
+        // Validate + authorise the target group BEFORE the try: an abort()
+        // inside it would be caught by the generic handler and returned as 500.
+        // A group-scoped admin may only grant roles within groups they reach.
+        $validated = $request->validate([
+            'role_definition_id' => 'required|exists:role_definitions,id',
+            'group_id' => 'nullable|exists:groups,id',
+        ]);
+
+        if (! empty($validated['group_id'])) {
+            abort_unless(
+                $this->scope->canAccessGroup((int) $validated['group_id']),
+                403,
+                'That group is outside your scope.'
+            );
+        }
+
         try {
             $leader = Leader::findOrFail($id);
-
-            $validated = $request->validate([
-                'role_definition_id' => 'required|exists:role_definitions,id',
-                'group_id' => 'nullable|exists:groups,id',
-            ]);
 
             $leaderRole = LeaderRole::create([
                 'leader_id' => $leader->id,

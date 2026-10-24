@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Services\GroupHierarchyService;
 use App\Services\LeaderScopeService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -78,6 +79,8 @@ class GroupController extends Controller
 
     public function show(int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $group = Group::with(['groupType', 'leader.member', 'parent', 'children'])
                 ->withCount('members')
@@ -87,7 +90,7 @@ class GroupController extends Controller
                 'success' => true,
                 'data' => $group,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Group not found.',
@@ -102,6 +105,8 @@ class GroupController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $group = Group::findOrFail($id);
 
@@ -125,7 +130,7 @@ class GroupController extends Controller
                 'success' => true,
                 'data' => $group->load('groupType', 'leader.member', 'parent'),
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Group not found.',
@@ -140,6 +145,8 @@ class GroupController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $group = Group::findOrFail($id);
             $group->delete();
@@ -148,7 +155,7 @@ class GroupController extends Controller
                 'success' => true,
                 'data' => null,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Group not found.',
@@ -163,6 +170,8 @@ class GroupController extends Controller
 
     public function children(int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $children = Group::where('parent_id', $id)
                 ->with(['groupType', 'leader.member'])
@@ -183,6 +192,8 @@ class GroupController extends Controller
 
     public function ancestors(int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $ancestors = $this->hierarchyService->getAncestors($id);
 
@@ -200,6 +211,8 @@ class GroupController extends Controller
 
     public function members(int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $group = Group::findOrFail($id);
             $members = $group->members()->paginate(25);
@@ -208,7 +221,7 @@ class GroupController extends Controller
                 'success' => true,
                 'data' => $members,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Group not found.',
@@ -223,6 +236,8 @@ class GroupController extends Controller
 
     public function hierarchy(int $id): JsonResponse
     {
+        $this->authorizeGroupAccess($id);
+
         try {
             $group = Group::findOrFail($id);
             $tree = $this->hierarchyService->getTree($group->group_type_id);
@@ -231,7 +246,7 @@ class GroupController extends Controller
                 'success' => true,
                 'data' => $tree,
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Group not found.',
@@ -242,5 +257,21 @@ class GroupController extends Controller
                 'message' => 'Failed to fetch hierarchy.',
             ], 500);
         }
+    }
+
+    /**
+     * Abort 403 if the group exists but falls outside the caller's reach.
+     *
+     * A group that does not exist is left to the method's own findOrFail (404)
+     * rather than leaking existence as a 403. Methods that don't findOrFail
+     * (children/ancestors) simply return nothing for an unknown id.
+     */
+    private function authorizeGroupAccess(int $id): void
+    {
+        if (! Group::whereKey($id)->exists()) {
+            return;
+        }
+
+        abort_unless($this->scope->canAccessGroup($id), 403, 'This group is outside your scope.');
     }
 }

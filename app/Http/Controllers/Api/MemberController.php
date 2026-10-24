@@ -98,6 +98,8 @@ class MemberController extends Controller
 
     public function show(int $id): JsonResponse
     {
+        $this->authorizeMemberAccess($id);
+
         try {
             $member = Member::with(['groups', 'leader'])->findOrFail($id);
 
@@ -120,6 +122,8 @@ class MemberController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMemberAccess($id);
+
         try {
             $member = Member::findOrFail($id);
 
@@ -180,6 +184,8 @@ class MemberController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
+        $this->authorizeMemberAccess($id);
+
         try {
             $member = Member::findOrFail($id);
             $member->delete();
@@ -235,13 +241,23 @@ class MemberController extends Controller
 
     public function assignGroup(Request $request, int $id): JsonResponse
     {
+        $this->authorizeMemberAccess($id);
+
+        // Validate and authorise the target group BEFORE the try: an abort()
+        // inside it would be swallowed by the generic catch and returned as 500.
+        $validated = $request->validate([
+            'group_id' => 'required|exists:groups,id',
+            'is_primary' => 'boolean',
+        ]);
+
+        abort_unless(
+            $this->scope->canAccessGroup((int) $validated['group_id']),
+            403,
+            'That group is outside your scope.'
+        );
+
         try {
             $member = Member::findOrFail($id);
-
-            $validated = $request->validate([
-                'group_id' => 'required|exists:groups,id',
-                'is_primary' => 'boolean',
-            ]);
 
             $member->groups()->attach($validated['group_id'], [
                 'joined_at' => now()->toDateString(),
@@ -267,6 +283,8 @@ class MemberController extends Controller
 
     public function removeGroup(int $id, int $groupId): JsonResponse
     {
+        $this->authorizeMemberAccess($id);
+
         try {
             $member = Member::findOrFail($id);
             $member->groups()->detach($groupId);
@@ -286,5 +304,25 @@ class MemberController extends Controller
                 'message' => 'Failed to remove group.',
             ], 500);
         }
+    }
+
+    /**
+     * Abort 403 if the member exists but falls outside the caller's scope.
+     *
+     * Reuses the exact query the list/search endpoints scope with, so a
+     * per-record read or write can never reach further than the list would.
+     * A member that does not exist is left to the method's own findOrFail,
+     * which returns 404 rather than leaking existence as a 403.
+     */
+    private function authorizeMemberAccess(int $id): void
+    {
+        if (! Member::whereKey($id)->exists()) {
+            return;
+        }
+
+        $scoped = Member::whereKey($id);
+        $this->scope->scopeMembersQuery($scoped);
+
+        abort_unless($scoped->exists(), 403, 'This member is outside your scope.');
     }
 }
