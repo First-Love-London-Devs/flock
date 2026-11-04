@@ -68,8 +68,9 @@ class CampRegistrationController extends Controller
     {
         return [
             'slug' => 'copenhagen-2026',
-            'name' => 'Copenhagen Camp',
-            'city' => 'Copenhagen',
+            'name' => 'Copenhagen Camp',  // named after the organising church; held in Dijon
+            'city' => 'Dijon',
+            'country' => 'France',
             'venue' => null,    // to be announced
             'address' => null,
             'start_date' => '2026-12-03',

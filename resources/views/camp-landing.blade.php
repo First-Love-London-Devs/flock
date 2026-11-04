@@ -63,7 +63,7 @@
     <div class="section">
         <h2>The Camp</h2>
         <p>Join believers from {{ $churchSentence }} for the {{ $camp['name'] }},
-           {{ $dateLabel }} in {{ $camp['city'] }}. Two days together in the presence of God.
+           {{ $dateLabel }} in {{ $camp['city'] }}, {{ $camp['country'] }}. Two days together in the presence of God.
            Campers arrive the evening before and travel home after the final session.</p>
     </div>
 
@@ -81,7 +81,7 @@
         </div>
         <div class="card">
             <h3>Where</h3>
-            <p>{{ $camp['city'] }}</p>
+            <p>{{ $camp['city'] }}, {{ $camp['country'] }}</p>
             @if ($camp['venue'])
                 <p>{{ $camp['venue'] }}<br>{{ $camp['address'] }}</p>
             @else
