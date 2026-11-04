@@ -65,10 +65,9 @@ class CampRegistrationTest extends TestCase
     {
         $this->get('/camp')->assertOk()
             ->assertSee('Copenhagen Camp')
-            // Named after the organising church, held in Dijon.
-            ->assertSee('Dijon, France')
-            ->assertSee('camp-badge">Dijon<', false)
-            ->assertDontSee('camp-badge">Copenhagen<', false)
+            ->assertSee('Copenhagen, Denmark')
+            ->assertSee('camp-badge">Copenhagen<', false)
+            ->assertDontSee('Dijon')
             ->assertSee('Wednesday 2 December')
             ->assertSee('Thursday 3 December')
             ->assertSee('Friday 4 December')
@@ -79,7 +78,8 @@ class CampRegistrationTest extends TestCase
     public function test_form_offers_the_five_churches_and_no_denomination_or_country_picker(): void
     {
         $this->get('/camp/register')->assertOk()
-            ->assertSee('Dijon')
+            ->assertSee('3–4 December · Copenhagen')
+            ->assertDontSee('Dijon')
             ->assertSee('Go Church')
             ->assertSee('Go Ye Church')
             ->assertSee('First Love Sweden')
