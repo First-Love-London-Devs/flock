@@ -5,14 +5,16 @@ namespace Tests\Feature;
 use App\Filament\Resources\CampRegistrationResource;
 use App\Models\CampRegistration;
 use App\Models\Setting;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 use Tests\TestCase;
 
 /**
- * Public, no-payment camp RSVP + its admin list. Country and denomination are
- * fixed short lists (not tenant Groups). Tenancy middleware is disabled so the
- * tenant routes run against the test connection, as the API feature tests do.
+ * Public, no-payment camp RSVP + its admin list. The church is a fixed short
+ * list (not tenant Groups). Tenancy middleware is disabled so the tenant
+ * routes run against the test connection, as the API feature tests do.
  */
 class CampRegistrationTest extends TestCase
 {
@@ -35,8 +37,7 @@ class CampRegistrationTest extends TestCase
             'full_name' => 'Ada Lovelace',
             'phone_number' => '0791234567',
             'email' => 'ada@example.test',
-            'country' => 'Switzerland',
-            'denomination' => 'First Love',
+            'church' => 'First Love Sweden',
             'needs_accommodation' => '1',
             'bringing_children' => '0',
             'notes' => 'Vegetarian',
@@ -60,12 +61,29 @@ class CampRegistrationTest extends TestCase
         $this->assertTrue(CampRegistrationResource::canAccess());
     }
 
-    public function test_landing_and_form_render(): void
+    public function test_landing_shows_the_copenhagen_camp_and_its_schedule(): void
     {
-        $this->get('/camp')->assertOk()->assertSee('Living Waters & First Love Camp');
+        $this->get('/camp')->assertOk()
+            ->assertSee('Copenhagen Camp')
+            ->assertSee('Copenhagen')
+            ->assertSee('Wednesday 2 December')
+            ->assertSee('Thursday 3 December')
+            ->assertSee('Friday 4 December')
+            ->assertDontSee('Basel')
+            ->assertDontSee('Living Waters &amp; First Love Camp');
+    }
+
+    public function test_form_offers_the_five_churches_and_no_denomination_or_country_picker(): void
+    {
         $this->get('/camp/register')->assertOk()
-            ->assertSee('Germany')->assertSee('Switzerland')
-            ->assertSee('Denomination')->assertSee('First Love')->assertSee('Living Waters');
+            ->assertSee('Go Church')
+            ->assertSee('Go Ye Church')
+            ->assertSee('First Love Sweden')
+            ->assertSee('First Love Portugal')
+            ->assertSee('First Love Bulgaria')
+            ->assertDontSee('Denomination')
+            ->assertDontSee('Select your country')
+            ->assertDontSee('Germany');
     }
 
     public function test_camp_domain_setting_restricts_the_public_pages_to_one_host(): void
@@ -81,11 +99,11 @@ class CampRegistrationTest extends TestCase
         $this->assertDatabaseCount('camp_registrations', 0);
 
         // The camp host: served as normal.
-        $this->get('http://fl-eurozone.church-stack.com/camp')->assertOk()->assertSee('Living Waters & First Love Camp');
+        $this->get('http://fl-eurozone.church-stack.com/camp')->assertOk()->assertSee('Copenhagen Camp');
         $this->get('http://fl-eurozone.church-stack.com/camp/register')->assertOk();
     }
 
-    public function test_valid_registration_is_stored(): void
+    public function test_valid_registration_is_stored_with_church_and_tagged_to_the_copenhagen_camp(): void
     {
         $this->from('/camp/register')
             ->post('/camp/register', $this->validPayload())
@@ -94,29 +112,44 @@ class CampRegistrationTest extends TestCase
 
         $this->assertDatabaseHas('camp_registrations', [
             'full_name' => 'Ada Lovelace',
-            'country' => 'Switzerland',
-            'denomination' => 'First Love',
+            'church' => 'First Love Sweden',
+            'camp' => 'copenhagen-2026',
             'needs_accommodation' => 1,
             'bringing_children' => 0,
         ]);
     }
 
-    public function test_country_must_be_one_of_the_fixed_options(): void
+    public function test_church_must_be_one_of_the_fixed_options(): void
     {
         $this->from('/camp/register')
-            ->post('/camp/register', $this->validPayload(['country' => 'Narnia']))
-            ->assertSessionHasErrors('country');
+            ->post('/camp/register', $this->validPayload(['church' => 'Narnia Chapel']))
+            ->assertSessionHasErrors('church');
 
         $this->assertDatabaseCount('camp_registrations', 0);
     }
 
-    public function test_denomination_must_be_one_of_the_fixed_options(): void
+    public function test_church_is_required(): void
     {
         $this->from('/camp/register')
-            ->post('/camp/register', $this->validPayload(['denomination' => 'Something Else']))
-            ->assertSessionHasErrors('denomination');
+            ->post('/camp/register', $this->validPayload(['church' => '']))
+            ->assertSessionHasErrors('church');
 
         $this->assertDatabaseCount('camp_registrations', 0);
+    }
+
+    public function test_legacy_country_and_denomination_fields_are_ignored(): void
+    {
+        // The Basel-era form posted these; a stale tab or a bot replaying the
+        // old payload must not be able to write them onto a Copenhagen row.
+        $this->post('/camp/register', $this->validPayload([
+            'country' => 'Germany',
+            'denomination' => 'Living Waters',
+        ]));
+
+        $row = CampRegistration::sole();
+        $this->assertNull($row->country);
+        $this->assertNull($row->denomination);
+        $this->assertSame('First Love Sweden', $row->church);
     }
 
     public function test_number_of_children_is_dropped_when_not_bringing_children(): void
@@ -138,11 +171,28 @@ class CampRegistrationTest extends TestCase
         $this->get('/camp/register')->assertOk()->assertSee('Registration closed');
     }
 
-    public function test_admin_resource_lists_all_registrations(): void
+    public function test_admin_resource_lists_registrations_from_both_camps(): void
     {
-        CampRegistration::create(['full_name' => 'Swiss', 'phone_number' => '1', 'country' => 'Switzerland', 'denomination' => 'First Love']);
-        CampRegistration::create(['full_name' => 'German', 'phone_number' => '2', 'country' => 'Germany', 'denomination' => 'Living Waters']);
+        CampRegistration::create(['full_name' => 'Swiss', 'phone_number' => '1', 'camp' => 'basel-2026', 'country' => 'Switzerland', 'denomination' => 'First Love']);
+        CampRegistration::create(['full_name' => 'Swede', 'phone_number' => '2', 'camp' => 'copenhagen-2026', 'church' => 'First Love Sweden']);
 
         $this->assertSame(2, CampRegistrationResource::getEloquentQuery()->count());
+    }
+
+    public function test_migration_tags_pre_existing_registrations_as_the_basel_camp(): void
+    {
+        // Re-create the state before the Copenhagen migration ran: Basel rows
+        // exist, the camp/church columns do not. Then run only that migration.
+        Schema::table('camp_registrations', fn ($t) => $t->dropColumn(['camp', 'church']));
+        DB::table('camp_registrations')->insert([
+            'full_name' => 'Heidi', 'phone_number' => '3', 'country' => 'Switzerland',
+            'denomination' => 'First Love', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $migration = require database_path('migrations/tenant/2026_11_04_120000_add_camp_and_church_to_camp_registrations_table.php');
+        $migration->up();
+
+        $this->assertSame('basel-2026', DB::table('camp_registrations')->where('full_name', 'Heidi')->value('camp'));
+        $this->assertNull(DB::table('camp_registrations')->where('full_name', 'Heidi')->value('church'));
     }
 }

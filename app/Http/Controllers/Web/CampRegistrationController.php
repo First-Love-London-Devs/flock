@@ -9,10 +9,15 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Public, no-login RSVP for the Living Waters & First Love Camp, mirroring the
- * Understanding Campaign welcome form (Blade, tenant-domain scoped). No payment.
+ * Public, no-login RSVP for the Eurozone camp, mirroring the Understanding
+ * Campaign welcome form (Blade, tenant-domain scoped). No payment.
  *
- * Country and denomination are short fixed lists (not the tenant's Groups), so
+ * The page serves ONE camp at a time (campDetails()). It first ran the Basel
+ * camp (Nov 2026) and now runs the Copenhagen Camp (Dec 2026); every
+ * registration is tagged with the camp slug it was taken for, so the admin
+ * list can tell the two apart.
+ *
+ * The registrant's church is a short fixed list (not the tenant's Groups), so
  * the form works regardless of how the tenant's hierarchy is set up.
  */
 class CampRegistrationController extends Controller
@@ -35,25 +40,46 @@ class CampRegistrationController extends Controller
      */
     private const DOMAIN_KEY = 'camp_domain';
 
-    /** Countries offered in the form. */
-    public const COUNTRIES = ['Germany', 'Portugal', 'Switzerland', 'Other'];
-
-    /** Denominations offered in the form. */
-    public const DENOMINATIONS = ['First Love', 'Living Waters'];
+    /** Churches offered in the form: the branches travelling to Copenhagen. */
+    public const CHURCHES = [
+        'Go Church',
+        'Go Ye Church',
+        'First Love Sweden',
+        'First Love Portugal',
+        'First Love Bulgaria',
+    ];
 
     /**
-     * Fixed camp facts. Kept here (not a per-tenant setting) because this is a
-     * one-off event; move to config/Settings if it becomes recurring.
+     * Every camp this page has run for, newest first, keyed by the slug
+     * stored on each registration. Older entries stay so the admin list can
+     * still filter the registrations they collected.
+     */
+    public const CAMPS = [
+        'copenhagen-2026' => 'Copenhagen Camp (Dec 2026)',
+        'basel-2026' => 'Living Waters & First Love Camp, Basel (Nov 2026)',
+    ];
+
+    /**
+     * Fixed facts for the camp currently on the page. Kept here (not a
+     * per-tenant setting) because each camp is a one-off; swap this block when
+     * the next camp comes round and add its slug to CAMPS.
      */
     public static function campDetails(): array
     {
         return [
-            'name' => 'Living Waters & First Love Camp',
-            'speaker' => 'Bishop Dag Heward-Mills',
-            'start_date' => '2026-11-16',
-            'end_date' => '2026-11-20',
-            'venue' => 'Klybeck 610 Event-Plattform',
-            'address' => 'Gärtnerstrasse 2, 4057 Basel',
+            'slug' => 'copenhagen-2026',
+            'name' => 'Copenhagen Camp',
+            'city' => 'Copenhagen',
+            'venue' => null,    // to be announced
+            'address' => null,
+            'start_date' => '2026-12-03',
+            'end_date' => '2026-12-04',
+            'schedule' => [
+                ['date' => '2026-12-02', 'label' => 'Arrival of campers', 'detail' => 'Evening'],
+                ['date' => '2026-12-03', 'label' => 'Sessions', 'detail' => 'All day'],
+                ['date' => '2026-12-04', 'label' => 'Sessions', 'detail' => 'Morning (to be confirmed)'],
+                ['date' => '2026-12-04', 'label' => 'Departure', 'detail' => 'Afternoon'],
+            ],
         ];
     }
 
@@ -81,6 +107,7 @@ class CampRegistrationController extends Controller
 
         return view('camp-landing', [
             'camp' => static::campDetails(),
+            'churches' => self::CHURCHES,
             'closed' => $this->registrationsClosed(),
         ]);
     }
@@ -91,8 +118,7 @@ class CampRegistrationController extends Controller
 
         return view('camp-form', [
             'camp' => static::campDetails(),
-            'countries' => self::COUNTRIES,
-            'denominations' => self::DENOMINATIONS,
+            'churches' => self::CHURCHES,
             'closed' => $this->registrationsClosed(),
         ]);
     }
@@ -110,8 +136,7 @@ class CampRegistrationController extends Controller
             'full_name' => ['required', 'string', 'max:255'],
             'phone_number' => ['required', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
-            'country' => ['required', 'string', Rule::in(self::COUNTRIES)],
-            'denomination' => ['required', 'string', Rule::in(self::DENOMINATIONS)],
+            'church' => ['required', 'string', Rule::in(self::CHURCHES)],
             'travelling_from' => ['nullable', 'string', 'max:255'],
             'needs_accommodation' => ['required', 'boolean'],
             'bringing_children' => ['required', 'boolean'],
@@ -122,6 +147,10 @@ class CampRegistrationController extends Controller
         if (empty($data['bringing_children'])) {
             $data['number_of_children'] = null;
         }
+
+        // Only validated keys reach the model, so a replayed Basel-era payload
+        // (country/denomination) cannot write onto a Copenhagen row.
+        $data['camp'] = static::campDetails()['slug'];
 
         CampRegistration::create($data);
 

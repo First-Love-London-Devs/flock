@@ -68,7 +68,7 @@ Route::middleware([
         ->middleware('throttle:60,1')
         ->name('attendance-counter.counts');
 
-    // Public camp registration (Living Waters & First Love Camp), no login.
+    // Public camp registration (the current Eurozone camp, see CampRegistrationController), no login.
     // A real registrant fills this once; the throttle is generous for that and
     // useless to anyone scripting it.
     Route::get('/camp', [CampRegistrationController::class, 'landing'])->name('camp.landing');

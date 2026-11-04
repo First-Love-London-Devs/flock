@@ -54,8 +54,10 @@ class CampRegistrationResource extends Resource
                 Tables\Columns\TextColumn::make('full_name')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('phone_number')->label('Phone')->searchable(),
                 Tables\Columns\TextColumn::make('email')->searchable()->toggleable()->placeholder('—'),
-                Tables\Columns\TextColumn::make('country')->sortable()->placeholder('—'),
-                Tables\Columns\TextColumn::make('denomination')->searchable()->sortable()->placeholder('—'),
+                Tables\Columns\TextColumn::make('church')->sortable()->placeholder('—'),
+                // Basel-era rows carried country + denomination instead of a church.
+                Tables\Columns\TextColumn::make('country')->sortable()->toggleable(isToggledHiddenByDefault: true)->placeholder('—'),
+                Tables\Columns\TextColumn::make('denomination')->sortable()->toggleable(isToggledHiddenByDefault: true)->placeholder('—'),
                 Tables\Columns\IconColumn::make('needs_accommodation')->label('Accom.')->boolean(),
                 Tables\Columns\IconColumn::make('bringing_children')->label('Children')->boolean(),
                 Tables\Columns\TextColumn::make('number_of_children')->label('# Children')->toggleable()->placeholder('—'),
@@ -64,10 +66,11 @@ class CampRegistrationResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
-                Tables\Filters\SelectFilter::make('country')
-                    ->options(array_combine(CampRegistrationController::COUNTRIES, CampRegistrationController::COUNTRIES)),
-                Tables\Filters\SelectFilter::make('denomination')
-                    ->options(array_combine(CampRegistrationController::DENOMINATIONS, CampRegistrationController::DENOMINATIONS)),
+                Tables\Filters\SelectFilter::make('camp')
+                    ->options(CampRegistrationController::CAMPS)
+                    ->default(CampRegistrationController::campDetails()['slug']),
+                Tables\Filters\SelectFilter::make('church')
+                    ->options(array_combine(CampRegistrationController::CHURCHES, CampRegistrationController::CHURCHES)),
                 Tables\Filters\TernaryFilter::make('needs_accommodation')->label('Needs accommodation'),
                 Tables\Filters\TernaryFilter::make('bringing_children')->label('Bringing children'),
             ]);

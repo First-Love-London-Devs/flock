@@ -10,6 +10,8 @@ class CampRegistration extends Model
         'full_name',
         'phone_number',
         'email',
+        'camp',
+        'church',
         'country',
         'denomination',
         'travelling_from',

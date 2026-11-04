@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
  * Turn the public camp registration page on (or off) for the tenant that owns
  * a given domain, and pin it to that domain.
  *
- * The camp (Living Waters & First Love Camp) is a Eurozone event, served on
+ * The camp (currently the Copenhagen Camp, see CampRegistrationController) is a Eurozone event, served on
  * fl-eurozone.church-stack.com. That domain belongs to the shared go-church
  * tenant, which also answers on gochurch.church-stack.com. Passing the domain
  * here does double duty: it finds the right tenant AND becomes the camp_domain

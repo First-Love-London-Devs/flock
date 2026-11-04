@@ -26,7 +26,7 @@
 
 @section('content')
     <h1 class="page-title">Register for camp</h1>
-    <p class="page-subtitle">{{ $camp['name'] }} · {{ \Illuminate\Support\Carbon::parse($camp['start_date'])->format('j') }}–{{ \Illuminate\Support\Carbon::parse($camp['end_date'])->format('j F') }} · {{ $camp['venue'] }}, Basel</p>
+    <p class="page-subtitle">{{ $camp['name'] }} · {{ \Illuminate\Support\Carbon::parse($camp['start_date'])->format('j') }}–{{ \Illuminate\Support\Carbon::parse($camp['end_date'])->format('j F') }} · {{ $camp['city'] }}</p>
 
     @if (session('success'))
         <div class="card" style="border-color:#16a34a;background:#f0fdf4;">
@@ -55,23 +55,14 @@
             <input id="email" type="email" name="email" value="{{ old('email') }}">
             @error('email') <div class="camp-error">{{ $message }}</div> @enderror
 
-            <label for="country">Country</label>
-            <select id="country" name="country" required>
-                <option value="">Select your country</option>
-                @foreach ($countries as $c)
-                    <option value="{{ $c }}" @selected(old('country') === $c)>{{ $c }}</option>
+            <label for="church">Which church are you coming with?</label>
+            <select id="church" name="church" required>
+                <option value="">Select your church</option>
+                @foreach ($churches as $c)
+                    <option value="{{ $c }}" @selected(old('church') === $c)>{{ $c }}</option>
                 @endforeach
             </select>
-            @error('country') <div class="camp-error">{{ $message }}</div> @enderror
-
-            <label for="denomination">Denomination</label>
-            <select id="denomination" name="denomination" required>
-                <option value="">Select your denomination</option>
-                @foreach ($denominations as $d)
-                    <option value="{{ $d }}" @selected(old('denomination') === $d)>{{ $d }}</option>
-                @endforeach
-            </select>
-            @error('denomination') <div class="camp-error">{{ $message }}</div> @enderror
+            @error('church') <div class="camp-error">{{ $message }}</div> @enderror
 
             <label for="travelling_from">Travelling from <span class="optional">(city / country, optional)</span></label>
             <input id="travelling_from" type="text" name="travelling_from" value="{{ old('travelling_from') }}">
