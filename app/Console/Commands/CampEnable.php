@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Controllers\Web\CampRegistrationController;
 use App\Models\Setting;
 use App\Models\Tenant;
 use Illuminate\Console\Command;
@@ -23,6 +24,9 @@ use Illuminate\Support\Facades\Schema;
  *   php artisan camp:enable fl-eurozone.church-stack.com --close    # close registration
  *   php artisan camp:enable fl-eurozone.church-stack.com --open     # reopen
  *   php artisan camp:enable fl-eurozone.church-stack.com --off      # hide the page again
+ *   php artisan camp:enable fl-eurozone.church-stack.com --share    # print (creating if needed) the organisers' link
+ *   php artisan camp:enable fl-eurozone.church-stack.com --reshare  # rotate it (old link dies)
+ *   php artisan camp:enable fl-eurozone.church-stack.com --unshare  # switch the organisers' page off
  *
  * Idempotent: re-running changes only what the flags say and reports the
  * resulting state. Warns (does not fail) if the camp_registrations table is
@@ -34,7 +38,10 @@ class CampEnable extends Command
         {domain : the host the camp should serve on, e.g. fl-eurozone.church-stack.com}
         {--off : hide the camp page on this tenant instead of enabling it}
         {--close : close registration (page stays visible, submissions refused)}
-        {--open : reopen registration}';
+        {--open : reopen registration}
+        {--share : create (if missing) and print the link-only organisers\' responses page}
+        {--reshare : rotate the organisers\' link, invalidating the old one}
+        {--unshare : switch the organisers\' responses page off}';
 
     protected $description = 'Enable/disable the public camp registration page for the tenant that owns a domain';
 
@@ -65,11 +72,26 @@ class CampEnable extends Command
         $off = (bool) $this->option('off');
         $close = (bool) $this->option('close');
         $open = (bool) $this->option('open');
+        $share = (bool) $this->option('share');
+        $reshare = (bool) $this->option('reshare');
+        $unshare = (bool) $this->option('unshare');
+
+        if (($share || $reshare) && $unshare) {
+            $this->error('Pass --share/--reshare or --unshare, not both.');
+
+            return self::FAILURE;
+        }
 
         $state = [];
         $tableMissing = false;
 
-        $tenant->run(function () use ($domain, $off, $close, $open, &$state, &$tableMissing) {
+        $tenant->run(function () use ($domain, $off, $close, $open, $share, $reshare, $unshare, &$state, &$tableMissing) {
+            if ($unshare) {
+                CampRegistrationController::revokeShareKey();
+            } elseif ($share || $reshare) {
+                CampRegistrationController::generateShareKey(rotate: $reshare);
+            }
+
             if ($off) {
                 Setting::set('camp_enabled', false, 'boolean');
             } else {
@@ -87,6 +109,7 @@ class CampEnable extends Command
                 'enabled' => (bool) Setting::get('camp_enabled', false),
                 'domain' => Setting::get('camp_domain'),
                 'closed' => (bool) Setting::get('camp_registrations_closed', false),
+                'share_key' => CampRegistrationController::shareKey(),
             ];
             $tableMissing = ! Schema::hasTable('camp_registrations');
         });
@@ -96,6 +119,9 @@ class CampEnable extends Command
         $this->line('  camp_enabled: '.($state['enabled'] ? 'true' : 'false'));
         $this->line('  camp_domain:  '.($state['domain'] ?: '(all domains)'));
         $this->line('  registration: '.($state['closed'] ? 'CLOSED' : 'open'));
+        $this->line('  responses:    '.($state['share_key']
+            ? "https://{$domain}/camp/responses/{$state['share_key']}"
+            : 'off (run with --share to create the organisers\' link)'));
 
         if ($state['enabled'] && $tableMissing) {
             $this->newLine();

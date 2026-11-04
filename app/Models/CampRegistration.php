@@ -25,4 +25,13 @@ class CampRegistration extends Model
         'needs_accommodation' => 'boolean',
         'bringing_children' => 'boolean',
     ];
+
+    /**
+     * The church to show for this row. Copenhagen-era rows store it directly;
+     * Basel-era rows only carried denomination + country, so derive a label.
+     */
+    public function getChurchLabelAttribute(): string
+    {
+        return $this->church ?: implode(' · ', array_filter([$this->denomination, $this->country]));
+    }
 }

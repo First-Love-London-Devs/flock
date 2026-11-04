@@ -73,6 +73,14 @@ Route::middleware([
     // useless to anyone scripting it.
     Route::get('/camp', [CampRegistrationController::class, 'landing'])->name('camp.landing');
     Route::get('/camp/register', [CampRegistrationController::class, 'register'])->name('camp.register');
+    // Link-only organisers' view of the registrations (+ CSV). The {key} is a
+    // per-tenant share key (camp:enable --share); anything else is a 404.
+    Route::get('/camp/responses/{key}', [CampRegistrationController::class, 'responses'])
+        ->middleware('throttle:60,1')
+        ->name('camp.responses');
+    Route::get('/camp/responses/{key}/csv', [CampRegistrationController::class, 'responsesCsv'])
+        ->middleware('throttle:20,1')
+        ->name('camp.responses.csv');
     Route::post('/camp/register', [CampRegistrationController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('camp.store');

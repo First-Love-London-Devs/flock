@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CampRegistration;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -39,6 +40,13 @@ class CampRegistrationController extends Controller
      * domain of the tenant.
      */
     private const DOMAIN_KEY = 'camp_domain';
+
+    /**
+     * Per-tenant share key for the link-only organisers' view of the
+     * registrations (/camp/responses/{key}). Absent = that page is off.
+     * Created/rotated/revoked by `camp:enable --share|--reshare|--unshare`.
+     */
+    private const SHARE_KEY = 'camp_responses_key';
 
     /** Churches offered in the form: the branches travelling to Copenhagen. */
     public const CHURCHES = [
@@ -84,6 +92,34 @@ class CampRegistrationController extends Controller
         ];
     }
 
+    public static function shareKey(): ?string
+    {
+        $key = Setting::get(self::SHARE_KEY);
+
+        return is_string($key) && $key !== '' ? $key : null;
+    }
+
+    /** Returns the existing key (so re-running keeps a circulated link alive)
+     *  unless asked to rotate, which invalidates the old link immediately. */
+    public static function generateShareKey(bool $rotate = false): string
+    {
+        $existing = static::shareKey();
+        if ($existing && ! $rotate) {
+            return $existing;
+        }
+
+        $key = Str::random(40);
+        Setting::set(self::SHARE_KEY, $key, 'string');
+
+        return $key;
+    }
+
+    public static function revokeShareKey(): void
+    {
+        Setting::where('key', self::SHARE_KEY)->delete();
+        Setting::clearCache();
+    }
+
     /** 404 the whole feature on any tenant that hasn't switched it on, and
      *  (when a camp_domain is set) on any domain of that tenant other than the
      *  camp's. Keeps the feature invisible everywhere it isn't wanted. */
@@ -100,6 +136,120 @@ class CampRegistrationController extends Controller
     private function registrationsClosed(): bool
     {
         return (bool) Setting::get(self::CLOSED_KEY, false);
+    }
+
+    /** Constant-time compare against the stored key; no key stored = no page. */
+    private function ensureShareKey(string $key): void
+    {
+        $expected = static::shareKey();
+        abort_unless($expected !== null && hash_equals($expected, $key), 404);
+    }
+
+    /**
+     * Normalise the organiser's filters. Anything unrecognised falls back to
+     * "no filter" (or the current camp), so a stale link can't error.
+     */
+    private function responseFilters(Request $request): array
+    {
+        $camp = $request->query('camp');
+        $yesNo = fn ($v) => in_array($v, ['1', '0'], true) ? $v : null;
+
+        return [
+            'camp' => array_key_exists($camp, self::CAMPS) ? $camp : static::campDetails()['slug'],
+            'church' => in_array($request->query('church'), self::CHURCHES, true) ? $request->query('church') : null,
+            'accommodation' => $yesNo($request->query('accommodation')),
+            'children' => $yesNo($request->query('children')),
+            'q' => Str::limit(trim((string) $request->query('q', '')), 100, ''),
+        ];
+    }
+
+    private function filteredRegistrations(array $f)
+    {
+        return CampRegistration::query()
+            ->where('camp', $f['camp'])
+            ->when($f['church'], fn ($q, $church) => $q->where('church', $church))
+            ->when($f['accommodation'] !== null, fn ($q) => $q->where('needs_accommodation', $f['accommodation'] === '1'))
+            ->when($f['children'] !== null, fn ($q) => $q->where('bringing_children', $f['children'] === '1'))
+            ->when($f['q'] !== '', function ($q) use ($f) {
+                // Escape LIKE wildcards so "%" or "_" in the search are literal.
+                $needle = '%'.addcslashes($f['q'], '%_\\').'%';
+                $q->where(function ($w) use ($needle) {
+                    $w->whereRaw('full_name LIKE ? ESCAPE ?', [$needle, '\\'])
+                        ->orWhereRaw('phone_number LIKE ? ESCAPE ?', [$needle, '\\']);
+                });
+            })
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+    }
+
+    public function responses(Request $request, string $key)
+    {
+        $this->ensureEnabled();
+        $this->ensureShareKey($key);
+
+        $filters = $this->responseFilters($request);
+
+        return view('camp-responses', [
+            'camp' => static::campDetails(),
+            'camps' => self::CAMPS,
+            'churches' => self::CHURCHES,
+            'filters' => $filters,
+            'rows' => $this->filteredRegistrations($filters)->get(),
+            'key' => $key,
+        ]);
+    }
+
+    public function responsesCsv(Request $request, string $key)
+    {
+        $this->ensureEnabled();
+        $this->ensureShareKey($key);
+
+        $filters = $this->responseFilters($request);
+        $rows = $this->filteredRegistrations($filters)->get();
+        $filename = Str::slug(Str::before(self::CAMPS[$filters['camp']], '(')).'-registrations.csv';
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel reads accented names
+            fputcsv($out, ['Registered', 'Full name', 'Phone', 'Email', 'Church', 'Travelling from',
+                'Needs accommodation', 'Bringing children', 'Number of children', 'Notes']);
+            foreach ($rows as $r) {
+                fputcsv($out, array_map([self::class, 'csvSafe'], [
+                    $r->created_at?->format('Y-m-d H:i'),
+                    $r->full_name,
+                    $r->phone_number,
+                    $r->email,
+                    $r->church_label,
+                    $r->travelling_from,
+                    $r->needs_accommodation ? 'Yes' : 'No',
+                    $r->bringing_children ? 'Yes' : 'No',
+                    $r->number_of_children,
+                    $r->notes,
+                ]));
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Stop a registrant's free text being executed as a formula when the CSV
+     * is opened in a spreadsheet. A leading + or - is left alone when the
+     * rest is a plain number (international phone numbers start with +).
+     */
+    public static function csvSafe($value)
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        $first = $value[0];
+        $plainNumber = preg_match('/^[+-][\d\s().-]+$/', $value) === 1;
+
+        if (in_array($first, ['=', '@', "\t", "\r"], true) || (in_array($first, ['+', '-'], true) && ! $plainNumber)) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 
     public function landing()
