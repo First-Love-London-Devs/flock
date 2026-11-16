@@ -36,9 +36,8 @@
 
 @section('content')
     @php
-        $start = \Illuminate\Support\Carbon::parse($camp['start_date']);
-        $end = \Illuminate\Support\Carbon::parse($camp['end_date']);
-        $dateLabel = $start->format('j').'–'.$end->format('j F Y');
+        $dateLabel = \App\Http\Controllers\Web\CampRegistrationController::dateLabel($camp, true);
+        $oneDay = $camp['start_date'] === $camp['end_date'];
         $churchList = collect($churches);
         $churchSentence = $churchList->slice(0, -1)->implode(', ').' and '.$churchList->last();
     @endphp
@@ -63,7 +62,7 @@
     <div class="section">
         <h2>The Camp</h2>
         <p>Join believers from {{ $churchSentence }} for the {{ $camp['name'] }},
-           {{ $dateLabel }} in {{ $camp['city'] }}, {{ $camp['country'] }}. Two days together in the presence of God.
+           {{ $dateLabel }} in {{ $camp['city'] }}, {{ $camp['country'] }}. {{ $oneDay ? 'A day together' : 'Two days together' }} in the presence of God.
            Campers arrive the evening before and travel home after the final session.</p>
     </div>
 
@@ -74,7 +73,7 @@
                 @foreach ($camp['schedule'] as $item)
                     <li>
                         <span class="day">{{ \Illuminate\Support\Carbon::parse($item['date'])->format('l j F') }}</span>
-                        <span class="what">{{ $item['label'] }} <span class="when">· {{ $item['detail'] }}</span></span>
+                        <span class="what">{{ $item['label'] }}@if (! empty($item['detail'])) <span class="when">· {{ $item['detail'] }}</span>@endif</span>
                     </li>
                 @endforeach
             </ul>

@@ -26,7 +26,7 @@
 
 @section('content')
     <h1 class="page-title">Register for camp</h1>
-    <p class="page-subtitle">{{ $camp['name'] }} · {{ \Illuminate\Support\Carbon::parse($camp['start_date'])->format('j') }}–{{ \Illuminate\Support\Carbon::parse($camp['end_date'])->format('j F') }} · {{ $camp['city'] }}</p>
+    <p class="page-subtitle">{{ $camp['name'] }} · {{ \App\Http\Controllers\Web\CampRegistrationController::dateLabel($camp) }} · {{ $camp['city'] }}</p>
 
     @if (session('success'))
         <div class="card" style="border-color:#16a34a;background:#f0fdf4;">

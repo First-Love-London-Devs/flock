@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CampRegistration;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -81,15 +82,30 @@ class CampRegistrationController extends Controller
             'country' => 'Denmark',
             'venue' => null,    // to be announced
             'address' => null,
-            'start_date' => '2026-12-03',
-            'end_date' => '2026-12-04',
+            // Moved to one day, 14 Dec, at Bishop Roger's request (16 Nov 2026).
+            'start_date' => '2026-12-14',
+            'end_date' => '2026-12-14',
             'schedule' => [
-                ['date' => '2026-12-02', 'label' => 'Arrival of campers', 'detail' => 'Evening'],
-                ['date' => '2026-12-03', 'label' => 'Sessions', 'detail' => 'All day'],
-                ['date' => '2026-12-04', 'label' => 'Sessions', 'detail' => 'Morning (to be confirmed)'],
-                ['date' => '2026-12-04', 'label' => 'Departure', 'detail' => 'Afternoon'],
+                ['date' => '2026-12-13', 'label' => 'Arrival of campers', 'detail' => 'Evening'],
+                ['date' => '2026-12-14', 'label' => 'Sessions', 'detail' => 'All day'],
+                ['date' => '2026-12-15', 'label' => 'Departure', 'detail' => ''],
             ],
         ];
+    }
+
+    /**
+     * The camp's dates for a heading: "3–4 December" over several days, or
+     * just "14 December" for a one-day camp. Adds the year when asked.
+     */
+    public static function dateLabel(array $camp, bool $withYear = false): string
+    {
+        $start = Carbon::parse($camp['start_date']);
+        $end = Carbon::parse($camp['end_date']);
+        $tail = $withYear ? ' Y' : '';
+
+        return $start->isSameDay($end)
+            ? $start->format('j F'.$tail)
+            : $start->format('j').'–'.$end->format('j F'.$tail);
     }
 
     public static function shareKey(): ?string

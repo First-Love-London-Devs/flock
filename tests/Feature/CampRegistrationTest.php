@@ -68,9 +68,12 @@ class CampRegistrationTest extends TestCase
             ->assertSee('Copenhagen, Denmark')
             ->assertSee('camp-badge">Copenhagen<', false)
             ->assertDontSee('Dijon')
-            ->assertSee('Wednesday 2 December')
-            ->assertSee('Thursday 3 December')
-            ->assertSee('Friday 4 December')
+            ->assertSee('Sunday 13 December')
+            ->assertSee('Monday 14 December')
+            ->assertSee('Tuesday 15 December')
+            ->assertSee('14 December 2026')
+            ->assertDontSee('14–14')
+            ->assertDontSee('Thursday 3 December')
             ->assertDontSee('Basel')
             ->assertDontSee('Living Waters &amp; First Love Camp');
     }
@@ -78,7 +81,8 @@ class CampRegistrationTest extends TestCase
     public function test_form_offers_the_five_churches_and_no_denomination_or_country_picker(): void
     {
         $this->get('/camp/register')->assertOk()
-            ->assertSee('3–4 December · Copenhagen')
+            ->assertSee('14 December · Copenhagen')
+            ->assertDontSee('14–14')
             ->assertDontSee('Dijon')
             ->assertSee('Go Church')
             ->assertSee('Go Ye Church')
