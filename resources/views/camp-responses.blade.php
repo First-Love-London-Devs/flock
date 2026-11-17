@@ -31,6 +31,9 @@
         .resp-table .muted { color: #9ca3af; }
         .resp-table .yes { color: #15803d; font-weight: 600; }
         .resp-table .notes { max-width: 18rem; white-space: pre-wrap; }
+        .btn-del { background: #fff; color: #b91c1c; border: 1px solid #fecaca; padding: .35rem .7rem; font-size: .8rem; }
+        .btn-del:hover { background: #fef2f2; }
+        .resp-flash { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: .7rem 1rem; border-radius: .5rem; margin-bottom: 1rem; }
         .resp-empty { padding: 2.5rem 1rem; text-align: center; color: #6b7280; }
         @media (max-width: 640px) { .resp-table { font-size: .85rem; } }
     </style>
@@ -52,6 +55,10 @@
         </div>
         <div class="resp-count">{{ $count }} {{ \Illuminate\Support\Str::plural('registration', $count) }}</div>
     </div>
+
+    @if (session('camp_deleted'))
+        <div class="resp-flash">Removed {{ session('camp_deleted') }}.</div>
+    @endif
 
     <form method="GET" action="/camp/responses/{{ $key }}" class="card">
         <div class="resp-filters">
@@ -116,6 +123,7 @@
                         <th>Accom.</th>
                         <th>Children</th>
                         <th>Notes</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -130,6 +138,14 @@
                             <td class="num">@if($r->needs_accommodation)<span class="yes">Yes</span>@else<span class="muted">No</span>@endif</td>
                             <td class="num">@if($r->bringing_children)<span class="yes">Yes{{ $r->number_of_children !== null ? ' ('.$r->number_of_children.')' : '' }}</span>@else<span class="muted">No</span>@endif</td>
                             <td class="notes">{{ $r->notes ?: '' }}@if(!$r->notes)<span class="muted">—</span>@endif</td>
+                            <td>
+                                <form method="POST" action="/camp/responses/{{ $key }}/delete/{{ $r->id }}"
+                                      onsubmit="return confirm(@js('Remove '.$r->full_name.' from the registrations? This cannot be undone.'))">
+                                    @csrf
+                                    <input type="hidden" name="back" value="{{ $query ? '?'.http_build_query($query) : '' }}">
+                                    <button type="submit" class="btn btn-del">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

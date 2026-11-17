@@ -7,6 +7,7 @@ use App\Models\CampRegistration;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -213,6 +214,35 @@ class CampRegistrationController extends Controller
             'rows' => $this->filteredRegistrations($filters)->get(),
             'key' => $key,
         ]);
+    }
+
+    /**
+     * Remove one registration from the organisers' page (asked for by the
+     * camp organisers, who need to clear out entries without a Flock login).
+     * Same gates as the page. There is no undo, so the full row is written to
+     * the log first and can be re-created from there.
+     */
+    public function destroyResponse(Request $request, string $key, int $registration)
+    {
+        $this->ensureEnabled();
+        $this->ensureShareKey($key);
+
+        $row = CampRegistration::query()->findOrFail($registration);
+
+        Log::warning('camp.registration.deleted', [
+            'host' => $request->getHost(),
+            'ip' => $request->ip(),
+            'registration' => $row->getAttributes(),
+        ]);
+
+        $row->delete();
+
+        // Back to the same filtered view the organiser was looking at.
+        $back = (string) $request->input('back', '');
+        $query = str_starts_with($back, '?') ? $back : '';
+
+        return redirect('/camp/responses/'.$key.$query)
+            ->with('camp_deleted', $row->full_name);
     }
 
     public function responsesCsv(Request $request, string $key)

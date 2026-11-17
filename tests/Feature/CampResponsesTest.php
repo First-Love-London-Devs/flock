@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Web\CampRegistrationController;
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\CampRegistration;
 use App\Models\Setting;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -191,5 +192,43 @@ class CampResponsesTest extends TestCase
         CampRegistrationController::revokeShareKey();
         $this->get($this->url($second))->assertNotFound();
         $this->assertNull(CampRegistrationController::shareKey());
+    }
+
+    public function test_an_organiser_can_delete_a_registration_from_the_page(): void
+    {
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $keep = $this->copenhagen('Keep Me');
+        $gone = $this->copenhagen('Remove Me');
+
+        $this->get($this->url())->assertSee('Delete');
+
+        $this->post('/camp/responses/'.self::KEY.'/delete/'.$gone->id, ['back' => '?church=First+Love+Sweden'])
+            ->assertRedirect('/camp/responses/'.self::KEY.'?church=First+Love+Sweden');
+
+        $this->assertDatabaseMissing('camp_registrations', ['id' => $gone->id]);
+        $this->assertDatabaseHas('camp_registrations', ['id' => $keep->id]);
+        $this->get($this->url())->assertSee('Removed Remove Me.')->assertDontSee('<strong>Remove Me</strong>', false);
+    }
+
+    public function test_delete_needs_the_share_key_and_the_camp_switched_on(): void
+    {
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $row = $this->copenhagen('Stay Put');
+
+        $this->post('/camp/responses/wrong-key/delete/'.$row->id)->assertNotFound();
+
+        Setting::set('camp_enabled', false, 'boolean');
+        $this->post('/camp/responses/'.self::KEY.'/delete/'.$row->id)->assertNotFound();
+
+        $this->assertDatabaseHas('camp_registrations', ['id' => $row->id]);
+    }
+
+    public function test_delete_ignores_a_back_link_that_is_not_a_query_string(): void
+    {
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $row = $this->copenhagen('Someone');
+
+        $this->post('/camp/responses/'.self::KEY.'/delete/'.$row->id, ['back' => '//evil.example'])
+            ->assertRedirect('/camp/responses/'.self::KEY);
     }
 }

@@ -81,6 +81,10 @@ Route::middleware([
     Route::get('/camp/responses/{key}/csv', [CampRegistrationController::class, 'responsesCsv'])
         ->middleware('throttle:20,1')
         ->name('camp.responses.csv');
+    Route::post('/camp/responses/{key}/delete/{registration}', [CampRegistrationController::class, 'destroyResponse'])
+        ->whereNumber('registration')
+        ->middleware('throttle:60,1')
+        ->name('camp.responses.delete');
     Route::post('/camp/register', [CampRegistrationController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('camp.store');
