@@ -984,7 +984,7 @@
             </div>
         </div>
         <div class="footer-bottom">
-            &copy; {{ date('Y') }} Church Stack. All rights reserved.
+            &copy; {{ date('Y') }} Flock. All rights reserved.
         </div>
     </div>
 </footer>

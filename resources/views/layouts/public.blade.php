@@ -68,7 +68,7 @@
                 <a href="/support">Support</a>
                 <a href="/privacy">Privacy Policy</a>
             </div>
-            <p>&copy; {{ date('Y') }} Church Stack. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} Flock. All rights reserved.</p>
         </footer>
     </body>
 </html>

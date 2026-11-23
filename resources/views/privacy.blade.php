@@ -8,7 +8,7 @@
 
     <div class="section">
         <h2>Overview</h2>
-        <p>Church Stack ("we", "our", or "us") is committed to protecting the privacy of our users. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our platform and mobile application.</p>
+        <p>Flock ("we", "our", or "us") is committed to protecting the privacy of our users. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our platform and mobile application.</p>
     </div>
 
     <div class="section">
@@ -26,7 +26,7 @@
         <h2>How We Use Your Information</h2>
         <p>We use the information we collect to:</p>
         <ul>
-            <li>Provide and maintain the Church Stack platform</li>
+            <li>Provide and maintain the Flock platform</li>
             <li>Enable church administrators to manage their members, groups, and attendance</li>
             <li>Send important notifications about your account or our services</li>
             <li>Improve and develop new features for the platform</li>
@@ -36,7 +36,7 @@
 
     <div class="section">
         <h2>Data Ownership & Multi-Tenancy</h2>
-        <p>Each church on Church Stack operates within its own isolated environment. Church data is separated and not shared between organisations. Church administrators are responsible for the data they enter about their members and should ensure they have appropriate consent to store this information.</p>
+        <p>Each church on Flock operates within its own isolated environment. Church data is separated and not shared between organisations. Church administrators are responsible for the data they enter about their members and should ensure they have appropriate consent to store this information.</p>
     </div>
 
     <div class="section">
