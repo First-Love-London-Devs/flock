@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Group;
+use App\Models\GroupType;
 use App\Models\Leader;
 use App\Models\LeaderRole;
 use App\Models\RoleDefinition;
@@ -371,5 +372,56 @@ class AdminLeadershipTest extends TestCase
         $far = $rows->firstWhere('id', $farBacenta->id);
         $this->assertNotNull($far, 'super admin should see submissions tenant-wide');
         $this->assertTrue((bool) $far['sunday_submitted']);
+    }
+
+    /**
+     * Go Church's shape: Country > Church (the "branch") > Stream > ... > Bacenta.
+     * Each submissions row names its branch, and the branch list is what the
+     * app's filter offers.
+     */
+    public function test_submissions_tag_each_bacenta_with_its_branch_under_the_country_tier(): void
+    {
+        $countryType = GroupType::factory()->create(['name' => 'Country', 'slug' => 'country', 'level' => 0, 'tracks_attendance' => false]);
+        $churchType = GroupType::factory()->create(['name' => 'Church', 'slug' => 'gathering-service', 'level' => 1, 'tracks_attendance' => false]);
+        $streamType = GroupType::factory()->create(['name' => 'Stream', 'slug' => 'stream', 'level' => 2, 'tracks_attendance' => false]);
+
+        $belgium = Group::factory()->create(['name' => 'Belgium', 'group_type_id' => $countryType->id, 'parent_id' => null]);
+        $antwerp = Group::factory()->create(['name' => 'Go Church Antwerp', 'group_type_id' => $churchType->id, 'parent_id' => $belgium->id]);
+        $ghent = Group::factory()->create(['name' => 'Go Church Ghent', 'group_type_id' => $churchType->id, 'parent_id' => $belgium->id]);
+        $antwerpStream = Group::factory()->create(['name' => 'Go Church Antwerp', 'group_type_id' => $streamType->id, 'parent_id' => $antwerp->id]);
+        $antwerpGov = Group::factory()->create(['name' => 'Antwerp Gov', 'group_type_id' => $this->constituencyType->id, 'parent_id' => $antwerpStream->id]);
+        $a1 = $this->makeCellGroup($antwerpGov, null, 'Antwerp Bacenta');
+        $g1 = $this->makeCellGroup($ghent, null, 'Ghent Bacenta');
+
+        $data = $this->actingAs($this->makeSuperAdmin(), 'sanctum')
+            ->getJson('/api/v1/admin/submissions')
+            ->assertOk()
+            ->json('data');
+
+        $rows = collect($data['bacentas']);
+        $this->assertSame($antwerp->id, $rows->firstWhere('id', $a1->id)['branch_id']);
+        $this->assertSame('Go Church Antwerp', $rows->firstWhere('id', $a1->id)['branch_name']);
+        $this->assertSame($ghent->id, $rows->firstWhere('id', $g1->id)['branch_id']);
+
+        // Branches are the churches under a country, or the top group where
+        // there is no country tier (the fixture's Test Constituency).
+        $this->assertEqualsCanonicalizing(
+            ['Go Church Antwerp', 'Go Church Ghent', 'Test Constituency'],
+            collect($data['branches'])->pluck('name')->all(),
+        );
+    }
+
+    public function test_a_regular_admin_only_gets_branches_inside_their_own_scope(): void
+    {
+        $otherConstituency = $this->makeConstituency('Far Constituency');
+        $this->makeCellGroup($otherConstituency, null, 'Far Bacenta');
+
+        $data = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/submissions')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame(['Test Constituency'], collect($data['branches'])->pluck('name')->all());
+        $this->assertNotContains('Far Bacenta', collect($data['bacentas'])->pluck('name')->all());
     }
 }

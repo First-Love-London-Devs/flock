@@ -613,11 +613,14 @@ class AdminController extends Controller
             ->get()
             ->groupBy('group_id');
 
-        $rows = $bacentas->map(function ($g) use ($thisWeek) {
+        $branchOf = $this->branchResolver();
+
+        $rows = $bacentas->map(function ($g) use ($thisWeek, $branchOf) {
             $summaries = $thisWeek->get($g->id, collect());
             $sunday = $summaries->first(fn ($r) => Carbon::parse($r->date)->isSunday());
             $midweek = $summaries->first(fn ($r) => ! Carbon::parse($r->date)->isSunday());
             $leaderMember = $g->leader?->member;
+            $branch = $branchOf($g->id);
 
             return [
                 'id' => $g->id,
@@ -626,16 +629,64 @@ class AdminController extends Controller
                 'leader_name' => $leaderMember ? trim($leaderMember->first_name.' '.$leaderMember->last_name) : null,
                 'sunday_submitted' => (bool) $sunday,
                 'midweek_submitted' => (bool) $midweek,
+                'branch_id' => $branch['id'] ?? null,
+                'branch_name' => $branch['name'] ?? null,
             ];
         });
+
+        // Only branches that hold one of the rows above, so the filter can
+        // never name a church outside what this admin may already see.
+        $branches = $rows->whereNotNull('branch_id')
+            ->unique('branch_id')
+            ->map(fn ($r) => ['id' => $r['branch_id'], 'name' => $r['branch_name']])
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
 
         return $this->ok([
             'week_start' => Carbon::parse($weekStart)->toDateString(),
             'total' => $rows->count(),
             'sunday_submitted' => $rows->where('sunday_submitted', true)->count(),
             'midweek_submitted' => $rows->where('midweek_submitted', true)->count(),
+            'branches' => $branches->all(),
             'bacentas' => $rows->values()->all(),
         ]);
+    }
+
+    /**
+     * Returns fn(int $groupId): ?array{id:int,name:string}, the branch (church)
+     * a group sits in.
+     *
+     * A branch is a church: on a tenant with a country tier (Go Church:
+     * Country > Church > Stream > ... > Bacenta) it is the group directly under
+     * a country; with no country tier it is the top-level group. A group with
+     * no parent at all has no branch. One query for the whole tree, walked in
+     * memory, because a tenant is a few hundred groups.
+     */
+    protected function branchResolver(): \Closure
+    {
+        $countryTypeId = GroupType::where('slug', 'country')->value('id');
+        $groups = Group::query()->get(['id', 'name', 'parent_id', 'group_type_id'])->keyBy('id');
+
+        return function (int $groupId) use ($groups, $countryTypeId): ?array {
+            $node = $groups->get($groupId);
+            if (! $node || ! $node->parent_id) {
+                return null;
+            }
+
+            $guard = 50;
+            while ($node->parent_id && $guard-- > 0) {
+                $parent = $groups->get($node->parent_id);
+                if (! $parent) {
+                    break;
+                }
+                if ($countryTypeId && (int) $parent->group_type_id === (int) $countryTypeId) {
+                    break; // $node is the church directly under its country
+                }
+                $node = $parent;
+            }
+
+            return ['id' => (int) $node->id, 'name' => $node->name];
+        };
     }
 
     /** This week, Monday 00:00 to Sunday end-of-day (mirrors ConstituencyAnalytics). */
